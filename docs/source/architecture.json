@@ -1,0 +1,1196 @@
+{
+  "version": "1.0",
+  "diagramId": "c3c6d729-424f-4ced-a34e-37018aaed6e0",
+  "title": "Architecture Diagram",
+  "nodes": [
+    {
+      "id": "clinician-ui",
+      "type": "frontend",
+      "label": "Clinician Workspace",
+      "generic_name": "Clinician Portal",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Interface for clinicians to review SOAP notes and manage encounters.",
+        "tech": [
+          "React",
+          "Tailwind CSS",
+          "WebSockets"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "patient-ui",
+      "type": "frontend",
+      "label": "Patient Experience",
+      "generic_name": "Patient App",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Patient-facing interface for symptom intake and guidance.",
+        "tech": [
+          "React Native",
+          "WebSockets"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "escalation-ui",
+      "type": "frontend",
+      "label": "Clinical Escalation Console",
+      "generic_name": "Escalation UI",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Console for handling high-risk escalations.",
+        "tech": [
+          "React"
+        ],
+        "isolated": true
+      }
+    },
+    {
+      "id": "admin-ui",
+      "type": "frontend",
+      "label": "Safety Dashboard",
+      "generic_name": "Admin Dashboard",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Dashboard for safety monitoring and audit trails.",
+        "tech": [
+          "React",
+          "D3.js"
+        ],
+        "isolated": true
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "label": "API Gateway",
+      "generic_name": "API Gateway",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "right-3",
+          "side": "right",
+          "label": "Right 3"
+        }
+      ],
+      "data": {
+        "description": "Central entry point for all client requests.",
+        "tech": [
+          "Kong",
+          "Nginx"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "encounter-api",
+      "type": "service",
+      "label": "Encounter API & Stream",
+      "generic_name": "Encounter Service",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "right-3",
+          "side": "right",
+          "label": "Right 3"
+        }
+      ],
+      "data": {
+        "description": "Manages encounter lifecycle and real-time streams.",
+        "tech": [
+          "FastAPI",
+          "Python",
+          "Redis Pub/Sub"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "lyzr-supervisor",
+      "type": "service",
+      "label": "Encounter Supervisor",
+      "generic_name": "Encounter Supervisor",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        },
+        {
+          "id": "triage",
+          "label": "triage",
+          "side": "bottom"
+        },
+        {
+          "id": "soap",
+          "label": "soap",
+          "side": "bottom"
+        },
+        {
+          "id": "memory",
+          "label": "memory",
+          "side": "right"
+        },
+        {
+          "id": "db",
+          "label": "db",
+          "side": "right"
+        },
+        {
+          "id": "obs",
+          "label": "obs",
+          "side": "top"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-4",
+          "label": "Right 4",
+          "side": "right"
+        },
+        {
+          "id": "right-5",
+          "label": "Right 5",
+          "side": "right"
+        },
+        {
+          "id": "right-6",
+          "label": "Right 6",
+          "side": "right"
+        },
+        {
+          "id": "right-7",
+          "label": "Right 7",
+          "side": "right"
+        },
+        {
+          "id": "left-3",
+          "label": "Left 3",
+          "side": "left"
+        },
+        {
+          "id": "right-8",
+          "side": "right",
+          "label": "Right 8"
+        }
+      ],
+      "data": {
+        "description": "Lyzr-based supervisor managing agent handoffs and state.",
+        "tech": [
+          "Lyzr SDK",
+          "Python"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "adk-triage",
+      "type": "service",
+      "label": "Intake & Triage Agent",
+      "generic_name": "Triage Agent",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "top"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "bottom"
+        },
+        {
+          "id": "retrieval",
+          "label": "retrieval",
+          "side": "right"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "right-3",
+          "side": "right",
+          "label": "Right 3"
+        }
+      ],
+      "data": {
+        "description": "Consolidated agent for intake, adaptive follow-up, and urgency proposal.",
+        "tech": [
+          "Google ADK",
+          "Med-PaLM 2"
+        ]
+      }
+    },
+    {
+      "id": "adk-critic",
+      "type": "service",
+      "label": "Independent Safety Critic",
+      "generic_name": "Safety Critic",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "top"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "bottom"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Independent ADK agent that attempts to disprove low-risk triage results.",
+        "tech": [
+          "Google ADK",
+          "Gemini Pro"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "safety-red-flags",
+      "type": "service",
+      "label": "Red-Flag Rules Engine",
+      "generic_name": "Red Flag Engine",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "left-3",
+          "label": "Left 3",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "side": "right",
+          "label": "Right 2"
+        }
+      ],
+      "data": {
+        "description": "Deterministic keyword and pattern matching for immediate emergency escalation. Bypasses LLM.",
+        "tech": [
+          "Python",
+          "Regex",
+          "JSONSchema"
+        ]
+      }
+    },
+    {
+      "id": "qdrant-guidelines",
+      "type": "database",
+      "label": "Qdrant Guidelines",
+      "generic_name": "Guideline DB",
+      "ports": [
+        {
+          "id": "in-query",
+          "label": "Query In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "side": "left",
+          "label": "Left 2"
+        }
+      ],
+      "data": {
+        "description": "Vector store for curated medical guidelines.",
+        "tech": [
+          "Qdrant"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "qdrant-memory",
+      "type": "database",
+      "label": "Qdrant Encounter Memory",
+      "generic_name": "Memory DB",
+      "ports": [
+        {
+          "id": "in-read-write",
+          "label": "R/W In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Vector store for patient encounter history and longitudinal delta.",
+        "tech": [
+          "Qdrant"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "postgres-db",
+      "type": "database",
+      "label": "PostgreSQL Operational Store",
+      "generic_name": "Operational DB",
+      "ports": [
+        {
+          "id": "in-db",
+          "label": "DB In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "side": "left",
+          "label": "Left 2"
+        }
+      ],
+      "data": {
+        "description": "Relational store for operational data and audit logs.",
+        "tech": [
+          "PostgreSQL"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "safety-gate-logic",
+      "type": "service",
+      "label": "Two-Key Safety Gate",
+      "generic_name": "Safety Gate",
+      "ports": [
+        {
+          "id": "in-triage",
+          "label": "triage-in",
+          "side": "top"
+        },
+        {
+          "id": "in-critic",
+          "label": "critic-in",
+          "side": "top"
+        },
+        {
+          "id": "out-queue",
+          "label": "escalate",
+          "side": "bottom"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "left-3",
+          "label": "Left 3",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "side": "right",
+          "label": "Right 2"
+        }
+      ],
+      "data": {
+        "description": "Logic for the two-key safety gate (Triage + Critic).",
+        "tech": [
+          "Python"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "adk-soap",
+      "type": "service",
+      "label": "Scribe & SOAP Agent",
+      "generic_name": "SOAP Synthesizer",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "top"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "bottom"
+        },
+        {
+          "id": "retrieval",
+          "label": "retrieval",
+          "side": "right"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "side": "right",
+          "label": "Right 2"
+        }
+      ],
+      "data": {
+        "description": "Consolidated agent for ambient transcription and SOAP note synthesis with provenance.",
+        "tech": [
+          "Google ADK",
+          "Med-PaLM 2"
+        ]
+      }
+    },
+    {
+      "id": "ops-observability",
+      "type": "service",
+      "label": "Observability & Evaluation",
+      "generic_name": "Observability Stack",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "bottom"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "top"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Centralized logging and agent trajectory evaluation.",
+        "tech": [
+          "OpenTelemetry",
+          "Prometheus",
+          "Grafana"
+        ],
+        "isolated": true
+      }
+    },
+    {
+      "id": "consent-service",
+      "type": "service",
+      "label": "Consent & Privacy Service",
+      "generic_name": "Consent Manager",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "side": "right",
+          "label": "Right 2"
+        }
+      ],
+      "data": {
+        "description": "Manages patient consent and PII masking before agent processing.",
+        "tech": [
+          "Python",
+          "Redis"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "escalation-queue",
+      "type": "message-queue",
+      "label": "Escalation Queue (DLQ)",
+      "generic_name": "Escalation Queue",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "top"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "bottom"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "side": "left",
+          "label": "Left 2"
+        }
+      ],
+      "data": {
+        "description": "Persistent queue for high-risk escalations to ensure no patient is lost.",
+        "tech": [
+          "Redis",
+          "BullMQ"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "adk-retrieval",
+      "type": "service",
+      "label": "Evidence Retrieval Agent",
+      "generic_name": "Retrieval Agent",
+      "ports": [
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "out",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "side": "left",
+          "label": "Left 2"
+        }
+      ],
+      "data": {
+        "description": "Specialized agent for RAG over medical guidelines with versioning checks.",
+        "tech": [
+          "Google ADK",
+          "Qdrant SDK"
+        ],
+        "isolated": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "clinician-to-gw",
+      "source": {
+        "nodeId": "clinician-ui",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "in"
+      },
+      "type": "http",
+      "label": null
+    },
+    {
+      "id": "patient-to-gw",
+      "source": {
+        "nodeId": "patient-ui",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "left-2"
+      },
+      "type": "http",
+      "label": "Intake Request"
+    },
+    {
+      "id": "gw-to-encounter",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "encounter-api",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Route Encounter"
+    },
+    {
+      "id": "encounter-to-lyzr",
+      "source": {
+        "nodeId": "encounter-api",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "supervisor-to-triage",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "adk-triage",
+        "portId": "in"
+      },
+      "type": "grpc",
+      "label": "Invoke Triage Agent"
+    },
+    {
+      "id": "triage-to-guidelines",
+      "source": {
+        "nodeId": "adk-triage",
+        "portId": "retrieval"
+      },
+      "target": {
+        "nodeId": "qdrant-guidelines",
+        "portId": "in-query"
+      },
+      "type": "database",
+      "label": null
+    },
+    {
+      "id": "triage-to-gate",
+      "source": {
+        "nodeId": "adk-triage",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "safety-gate-logic",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Triage Proposal"
+    },
+    {
+      "id": "lyzr-to-critic",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "memory"
+      },
+      "target": {
+        "nodeId": "adk-critic",
+        "portId": "in"
+      },
+      "type": "grpc",
+      "label": null
+    },
+    {
+      "id": "critic-to-gate",
+      "source": {
+        "nodeId": "adk-critic",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "safety-gate-logic",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": "Safety Audit"
+    },
+    {
+      "id": "gate-to-supervisor",
+      "source": {
+        "nodeId": "safety-gate-logic",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "supervisor-to-soap",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "db"
+      },
+      "target": {
+        "nodeId": "adk-soap",
+        "portId": "in"
+      },
+      "type": "grpc",
+      "label": "Invoke SOAP Agent"
+    },
+    {
+      "id": "soap-to-db",
+      "source": {
+        "nodeId": "adk-soap",
+        "portId": "retrieval"
+      },
+      "target": {
+        "nodeId": "postgres-db",
+        "portId": "in-db"
+      },
+      "type": "database",
+      "label": null
+    },
+    {
+      "id": "supervisor-to-qdrant-memory",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "right-4"
+      },
+      "target": {
+        "nodeId": "qdrant-memory",
+        "portId": "in-read-write"
+      },
+      "type": "database",
+      "label": "Session State"
+    },
+    {
+      "id": "supervisor-to-obs",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "right-5"
+      },
+      "target": {
+        "nodeId": "ops-observability",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Telemetry"
+    },
+    {
+      "id": "c183e9f3-3160-4583-a844-d66671acd07f",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "safety-red-flags",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "api-to-consent",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "consent-service",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "consent-to-api",
+      "source": {
+        "nodeId": "consent-service",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "encounter-api",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "api-to-redflags",
+      "source": {
+        "nodeId": "encounter-api",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "safety-red-flags",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "redflags-to-queue",
+      "source": {
+        "nodeId": "safety-red-flags",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "escalation-queue",
+        "portId": "in"
+      },
+      "type": "async-event",
+      "label": "Immediate Escalation"
+    },
+    {
+      "id": "queue-to-escalation-ui",
+      "source": {
+        "nodeId": "escalation-queue",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "escalation-ui",
+        "portId": "in"
+      },
+      "type": "websocket",
+      "label": "Alert Clinician"
+    },
+    {
+      "id": "supervisor-to-retrieval",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "right-6"
+      },
+      "target": {
+        "nodeId": "adk-retrieval",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "retrieval-to-qdrant-guidelines",
+      "source": {
+        "nodeId": "adk-retrieval",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "qdrant-guidelines",
+        "portId": "left-2"
+      },
+      "type": "database",
+      "label": "Hybrid Search"
+    },
+    {
+      "id": "supervisor-to-gate-logic",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "right-7"
+      },
+      "target": {
+        "nodeId": "safety-gate-logic",
+        "portId": "left-3"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "gate-to-queue",
+      "source": {
+        "nodeId": "safety-gate-logic",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "escalation-queue",
+        "portId": "left-2"
+      },
+      "type": "async-event",
+      "label": "High-Risk Escalation"
+    },
+    {
+      "id": "encounter-to-consent",
+      "source": {
+        "nodeId": "encounter-api",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "consent-service",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": "Verify Consent"
+    },
+    {
+      "id": "consent-to-redflags",
+      "source": {
+        "nodeId": "consent-service",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "safety-red-flags",
+        "portId": "left-3"
+      },
+      "type": "internal-api",
+      "label": "Check Red Flags"
+    },
+    {
+      "id": "redflags-to-supervisor",
+      "source": {
+        "nodeId": "safety-red-flags",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "left-3"
+      },
+      "type": "internal-api",
+      "label": "Deterministic Signal"
+    },
+    {
+      "id": "triage-to-retrieval",
+      "source": {
+        "nodeId": "adk-triage",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "adk-retrieval",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": "Fetch Guidelines"
+    },
+    {
+      "id": "supervisor-to-postgres",
+      "source": {
+        "nodeId": "lyzr-supervisor",
+        "portId": "right-8"
+      },
+      "target": {
+        "nodeId": "postgres-db",
+        "portId": "left-2"
+      },
+      "type": "database",
+      "label": "Audit Log"
+    },
+    {
+      "id": "obs-to-admin",
+      "source": {
+        "nodeId": "ops-observability",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "admin-ui",
+        "portId": "in"
+      },
+      "type": "http",
+      "label": "Safety Metrics"
+    },
+    {
+      "id": "soap-to-clinician-ui",
+      "source": {
+        "nodeId": "adk-soap",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "clinician-ui",
+        "portId": "in"
+      },
+      "type": "websocket",
+      "label": "Draft SOAP Note"
+    }
+  ],
+  "groups": [
+    {
+      "children": [
+        "clinician-ui",
+        "patient-ui",
+        "escalation-ui",
+        "admin-ui"
+      ],
+      "id": "experience-layer",
+      "label": "Experience Layer"
+    },
+    {
+      "children": [
+        "qdrant-guidelines",
+        "qdrant-memory",
+        "postgres-db"
+      ],
+      "id": "data-layer",
+      "label": "Data & Knowledge Layer"
+    },
+    {
+      "children": [
+        "ops-observability"
+      ],
+      "id": "ops-layer",
+      "label": "Platform & Operations Layer"
+    },
+    {
+      "children": [
+        "api-gateway",
+        "encounter-api",
+        "consent-service"
+      ],
+      "id": "edge-app-layer",
+      "label": "Edge & Application Layer"
+    },
+    {
+      "children": [
+        "lyzr-supervisor"
+      ],
+      "id": "orchestration-layer",
+      "label": "Lyzr Orchestration Control Plane"
+    },
+    {
+      "children": [
+        "adk-triage",
+        "adk-critic",
+        "adk-soap",
+        "adk-retrieval"
+      ],
+      "id": "agent-runtime",
+      "label": "Google ADK Agent Runtime"
+    },
+    {
+      "children": [
+        "safety-red-flags",
+        "safety-gate-logic",
+        "escalation-queue"
+      ],
+      "id": "safety-services-layer",
+      "label": "Deterministic Safety Services"
+    }
+  ],
+  "metadata": {}
+}

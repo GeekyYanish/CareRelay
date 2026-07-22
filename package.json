@@ -1,0 +1,15 @@
+{
+  "name": "carerelay",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --filter @carerelay/web dev",
+    "generate:api-types": "cd apps/api && .venv/bin/python -m app.export_openapi && cd ../.. && pnpm exec openapi-typescript packages/api-types/openapi.json -o packages/api-types/src/schema.d.ts",
+    "build": "pnpm --filter @carerelay/web build",
+    "test": "pnpm --filter @carerelay/web test",
+    "test:e2e": "pnpm --filter @carerelay/web test:e2e"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.10.1"
+  }
+}

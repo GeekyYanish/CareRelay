@@ -1,0 +1,20 @@
+version: demo_v1
+disclaimer: Synthetic hackathon rules; not validated clinical policy.
+rules:
+  - id: RF-CHEST-BREATH
+    severity: Emergency
+    patterns: ["chest pressure", "chest pain", "can't breathe", "cannot breathe", "severe shortness of breath"]
+    action: Seek local emergency services now.
+  - id: RF-STROKE
+    severity: Emergency
+    patterns: ["face droop", "slurred speech", "one-sided weakness", "sudden weakness"]
+    action: Seek local emergency services now.
+  - id: RF-BLEEDING
+    severity: Emergency
+    patterns: ["uncontrolled bleeding", "vomiting blood", "passing out"]
+    action: Seek local emergency services now.
+  - id: RF-SAME-DAY-FEVER
+    severity: Same-Day
+    patterns: ["high fever worsening", "unable to keep fluids down"]
+    action: Contact a qualified clinician today.
+
