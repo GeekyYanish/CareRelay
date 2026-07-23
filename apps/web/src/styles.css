@@ -114,8 +114,8 @@ textarea { min-height:110px; resize:vertical; line-height:1.5; }
 .disclaimer p { margin:0; font-size:.82rem; line-height:1.5; }
 .disclaimer--compact { padding:10px 12px; }
 .intake-grid { display:grid; grid-template-columns:.88fr 1.12fr; gap:22px; margin-top:24px; align-items:start; }
-.intake-grid--focused { grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); }
-.instrument-card,.intake-aside,.escalation-list article { background:var(--paper); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); }
+.intake-grid--focused { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.instrument-card,.scenario-panel,.intake-aside,.escalation-list article { background:var(--paper); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); }
 .instrument-card { padding:24px; }
 .section-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:20px; }
 .section-heading h2 { margin:5px 0 0; font-size:1.45rem; }
@@ -131,6 +131,16 @@ textarea { min-height:110px; resize:vertical; line-height:1.5; }
 .voice-panel p { margin:0; color:var(--muted); font-size:.8rem; max-width:38ch; }
 .voice-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
 .voice-badge { display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border-radius:999px; background:#efe8df; color:var(--ink); font-size:.75rem; font-weight:600; }
+.scenario-panel { overflow:hidden; }
+.scenario-panel>.section-heading { padding:24px 24px 4px; }
+.count { font:600 2rem 'Fira Code',monospace; color:#9bb4ad; }
+.scenario-list { display:grid; }
+.scenario-list button { min-height:70px; display:grid; grid-template-columns:42px 1fr 24px; align-items:center; gap:12px; border:0; border-top:1px solid #e5e4dd; padding:12px 20px; background:transparent; text-align:left; color:var(--ink); }
+.scenario-list button:hover { background:#eef5f1; }
+.scenario-list button:disabled { opacity:.6; }
+.scenario-list button>span { font:500 .75rem 'Fira Code'; color:var(--green); }
+.scenario-list button>div { display:flex; flex-direction:column; gap:3px; }
+.scenario-list button small { color:var(--muted); }
 
 .intake-aside { position:relative; overflow:hidden; padding:28px; background:linear-gradient(145deg,#102b32,#1c4c51); color:#e8f0ed; }
 .intake-aside::after { content:''; position:absolute; width:210px; height:210px; right:-78px; bottom:-86px; border:1px solid rgba(196,235,223,.25); border-radius:50%; box-shadow:0 0 0 32px rgba(196,235,223,.05),0 0 0 64px rgba(196,235,223,.035); }

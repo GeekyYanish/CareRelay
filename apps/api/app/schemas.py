@@ -242,6 +242,7 @@ class EncounterView(BaseModel):
     questions: list[dict[str, Any]]
     answers: list[dict[str, Any]]
     timeline: list[dict[str, Any]]
+    scenario_id: str | None = None
     triage: TriageProposal | None = None
     critic: SafetyCritique | None = None
     gate: GateDecision | None = None

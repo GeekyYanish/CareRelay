@@ -178,6 +178,36 @@ def consent(encounter_id: str, payload: ConsentRequest, user: User = Depends(req
     return store.save_encounter(encounter)
 
 
+@app.get("/api/v1/demo/scenarios")
+def list_demo_scenarios(user: User = Depends(current_user)):
+    if not settings.enable_demo_scenarios:
+        raise HTTPException(404, "Demo scenarios are disabled")
+    return [
+        {
+            key: value
+            for key, value in scenario.items()
+            if key not in {"transcript", "critic", "triage"}
+        }
+        for scenario in store.scenarios.values()
+    ]
+
+
+@app.post("/api/v1/encounters/{encounter_id}/demo-scenario", response_model=EncounterView)
+async def load_demo_scenario(
+    encounter_id: str,
+    scenario_id: str = Body(embed=True),
+    user: User = Depends(require_roles(Role.PATIENT)),
+):
+    if not settings.enable_demo_scenarios:
+        raise HTTPException(404, "Demo scenarios are disabled")
+    if scenario_id not in store.scenarios:
+        raise HTTPException(404, "Demo scenario not found")
+    encounter = encounter_for(user, encounter_id)
+    if not encounter.consent.get("accepted"):
+        raise HTTPException(409, "Consent is required")
+    return await encounters.load_scenario(encounter, scenario_id, user)
+
+
 @app.post("/api/v1/encounters/{encounter_id}/ingest", response_model=EncounterView)
 async def ingest(encounter_id: str, payload: IngestRequest, user: User = Depends(require_roles(Role.PATIENT))):
     encounter = encounter_for(user, encounter_id)

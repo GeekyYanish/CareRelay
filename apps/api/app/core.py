@@ -47,10 +47,12 @@ class Settings(BaseSettings):
     google_cloud_project: str = ""
     google_cloud_mcp_token: str = ""
     clinical_rules_path: str = "../../../packages/clinical-rules/clinical_v1.yaml"
+    demo_data_path: str = "../../../packages/demo-data/scenarios.json"
     retrieval_threshold: float = 0.70
     low_risk_uncertainty_max: float = 0.25
     provider_timeout_seconds: float = 2.0
     provision_demo_users: bool = False
+    enable_demo_scenarios: bool = True
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -68,14 +70,15 @@ class Settings(BaseSettings):
             errors.append("JWT_SECRET must contain at least 32 characters")
         if self.a2a_enabled and len(self.a2a_shared_token) < 32:
             errors.append("A2A_SHARED_TOKEN must contain at least 32 characters")
-        if self.orchestrator_provider.lower() != "lyzr":
-            errors.append("ORCHESTRATOR_PROVIDER must be lyzr")
-        if self.mcp_provider.lower() != "google-cloud":
-            errors.append("MCP_PROVIDER must be google-cloud")
-        if not self.lyzr_api_key or not self.lyzr_workflow_id:
-            errors.append("LYZR_API_KEY and LYZR_WORKFLOW_ID are required")
-        if not self.require_live_orchestration:
-            errors.append("REQUIRE_LIVE_ORCHESTRATION must be true")
+        # Live path: Lyzr required. Demo/local path: deterministic agents are allowed so
+        # Routine / Self-Care remain reachable when SuperFlow times out or is misconfigured.
+        if self.require_live_orchestration:
+            if self.orchestrator_provider.lower() != "lyzr":
+                errors.append("ORCHESTRATOR_PROVIDER must be lyzr when REQUIRE_LIVE_ORCHESTRATION=true")
+            if not self.lyzr_api_key or not self.lyzr_workflow_id:
+                errors.append("LYZR_API_KEY and LYZR_WORKFLOW_ID are required when REQUIRE_LIVE_ORCHESTRATION=true")
+            if self.mcp_provider.lower() != "google-cloud":
+                errors.append("MCP_PROVIDER must be google-cloud when REQUIRE_LIVE_ORCHESTRATION=true")
         if not self.allow_local_origins and any(
             "localhost" in origin or "127.0.0.1" in origin for origin in self.cors_origins.split(",")
         ):

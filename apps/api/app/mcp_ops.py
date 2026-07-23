@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -15,14 +16,25 @@ class OpsMcpAdapter:
         self.settings = get_settings()
 
     def status(self) -> dict[str, Any]:
+        mock = self.settings.mcp_provider.lower() == "mock"
         return {
             "provider": self.settings.mcp_provider,
-            "connected": bool(self.settings.google_cloud_mcp_token),
-            "mode": "Google Cloud read-only",
+            "connected": mock or bool(self.settings.google_cloud_mcp_token),
+            "mode": "synthetic read-only" if mock else "Google Cloud read-only",
             "allowed_tools": sorted(ALLOWED_TOOLS),
         }
 
     async def snapshot(self) -> dict[str, Any]:
+        if self.settings.mcp_provider.lower() == "mock":
+            return {
+                "source": "local-mock-mcp",
+                "captured_at": datetime.now(timezone.utc).isoformat(),
+                "service_health": "operational",
+                "agent_runs_24h": 32,
+                "timeouts_24h": 1,
+                "open_alerts": 0,
+                "note": "Synthetic operations data; MCP is isolated from clinical decisions.",
+            }
         if not self.settings.google_cloud_project or not self.settings.google_cloud_mcp_token:
             raise RuntimeError("Google Cloud MCP requires project and bearer token")
         headers = {

@@ -8,8 +8,10 @@ COPY apps/api/app ./app
 COPY apps/api/alembic.ini .
 COPY apps/api/migrations ./migrations
 COPY packages/clinical-rules /packages/clinical-rules
+COPY packages/demo-data /packages/demo-data
 
 ENV CLINICAL_RULES_PATH=/packages/clinical-rules/clinical_v1.yaml
+ENV DEMO_DATA_PATH=/packages/demo-data/scenarios.json
 
 EXPOSE 8000
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips=${FORWARDED_ALLOW_IPS:-127.0.0.1}"]

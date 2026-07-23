@@ -3,12 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
 
 from .auth import hash_password
+from .core import get_settings
 from .database import session_scope
 from .db.models import AuditRecord, EncounterRecord, EscalationRecord, UserRecord
 from .schemas import EncounterView, Role, User
@@ -16,6 +18,15 @@ from .schemas import EncounterView, Role, User
 
 class Store:
     tenant_id = "care-relay"
+
+    def __init__(self) -> None:
+        path = Path(get_settings().demo_data_path)
+        if not path.is_absolute():
+            path = (Path(__file__).parent / path).resolve()
+        if path.exists():
+            self.scenarios = {item["id"]: item for item in json.loads(path.read_text(encoding="utf-8"))}
+        else:
+            self.scenarios = {}
 
     def find_user(self, email: str) -> UserRecord | None:
         with session_scope() as session:

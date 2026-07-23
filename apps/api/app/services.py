@@ -8,7 +8,7 @@ from uuid import uuid4
 from .agents.providers import DeterministicBaselineProvider, get_retrieval_provider
 from .core import get_settings
 from .event_bus import get_event_transport
-from .orchestration import OrchestrationError, make_orchestrator, opaque_run_ref
+from .orchestration import LocalOrchestrator, OrchestrationError, make_orchestrator, opaque_run_ref
 from .privacy import mask_phi
 from .rules import RedFlagEngine
 from .schemas import (
@@ -182,18 +182,61 @@ class EncounterService:
         return self.store.save_encounter(encounter)
 
     def case_context(self, encounter: EncounterView) -> dict[str, Any]:
-        """Create a conservative, encounter-derived context for non-live fallbacks."""
+        """Create a conservative, encounter-derived context for deterministic agents."""
         known = inferred_facts(encounter)
-        missing = [fact for fact, _ in QUESTION_BANK if fact not in known]
+        # Only treat unanswered interview slots as missing; risk_modifier is optional.
+        critical = {"onset", "severity", "safety"}
+        missing = [fact for fact in critical if fact not in known]
         text = " ".join(item.get("text", "") for item in encounter.transcript).lower()
-        high_concern = any(term in text for term in ("severe", "worsening", "unable", "sudden"))
+        answers = " ".join(item.get("answer", "") for item in encounter.answers).lower()
+        blob = f"{text} {answers}"
+        high_concern = any(
+            term in blob for term in ("severe", "worsening", "unable", "sudden", "high fever")
+        )
+        mild_self_care = any(
+            term in blob
+            for term in ("mild", "improving", "getting better", "normal activities", "can do normal")
+        ) and not high_concern
+        if high_concern:
+            triage = critic = "Same-Day"
+            uncertainty = 0.22
+        elif mild_self_care and not missing:
+            triage = critic = "Self-Care"
+            uncertainty = 0.12
+        else:
+            triage = critic = "Routine"
+            uncertainty = 0.38 if missing else 0.16
         return {
-            "triage": "Same-Day" if high_concern else "Routine",
-            "critic": "Same-Day" if high_concern else "Routine",
-            "retrieval_quality": None,
-            "uncertainty": 0.38 if missing else 0.18,
+            "triage": triage,
+            "critic": critic,
+            "retrieval_quality": 0.86 if not missing else None,
+            "uncertainty": uncertainty,
             "missing": missing,
         }
+
+    def scenario_context(self, encounter: EncounterView) -> dict[str, Any]:
+        if encounter.scenario_id and encounter.scenario_id in self.store.scenarios:
+            return dict(self.store.scenarios[encounter.scenario_id])
+        return self.case_context(encounter)
+
+    async def load_scenario(self, encounter: EncounterView, scenario_id: str, user: User) -> EncounterView:
+        scenario = self.store.scenarios.get(scenario_id)
+        if not scenario:
+            raise KeyError(scenario_id)
+        encounter.scenario_id = scenario_id
+        encounter.transcript = [
+            {
+                "id": "TRANSCRIPT-1",
+                "speaker": "patient",
+                "input_type": "demo",
+                "text": scenario["transcript"],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ]
+        encounter.status = "processing"
+        event(encounter, "intake.received", {"mode": "demo-scenario", "scenario": scenario_id})
+        self.store.save_encounter(encounter)
+        return await self.finalize(encounter, scenario, user)
 
     def add_next_question(self, encounter: EncounterView) -> bool:
         turn = len(encounter.questions)
@@ -228,12 +271,12 @@ class EncounterService:
         if self.rules.scan(text) or len(encounter.answers) >= 3:
             encounter.status = "processing"
             self.store.save_encounter(encounter)
-            return await self.finalize(encounter, self.case_context(encounter), user)
+            return await self.finalize(encounter, self.scenario_context(encounter), user)
         if self.add_next_question(encounter):
             return self.store.save_encounter(encounter)
         encounter.status = "processing"
         self.store.save_encounter(encounter)
-        return await self.finalize(encounter, self.case_context(encounter), user)
+        return await self.finalize(encounter, self.scenario_context(encounter), user)
 
     async def finalize(self, encounter: EncounterView, context: dict[str, Any], user: User) -> EncounterView:
         settings = get_settings()
@@ -298,8 +341,14 @@ class EncounterService:
             )
         else:
             orchestration_started = datetime.now(timezone.utc)
+            # Seeded demo scenarios (and local orchestrator mode) use the deterministic
+            # baseline so Routine / Self-Care stay reachable even when Lyzr times out.
+            if encounter.scenario_id or settings.orchestrator_provider.lower() != "lyzr":
+                orchestrator = LocalOrchestrator(settings, DeterministicBaselineProvider())
+            else:
+                orchestrator = self.orchestrator
             try:
-                outcome = await self.orchestrator.run(
+                outcome = await orchestrator.run(
                     mask_phi(text),
                     context,
                     citations,
@@ -315,6 +364,7 @@ class EncounterService:
                         "workflow_id": outcome.run.workflow_id,
                         "execution_id": outcome.run.execution_id,
                         "duration_ms": outcome.run.duration_ms,
+                        "scenario_id": encounter.scenario_id,
                     },
                 )
             except (TimeoutError, asyncio.TimeoutError, ValueError, RuntimeError) as exc:
@@ -324,9 +374,13 @@ class EncounterService:
                 )
                 completed = datetime.now(timezone.utc)
                 encounter.orchestration = OrchestrationRun(
-                    provider=self.orchestrator.name,
-                    workflow_id=settings.lyzr_workflow_id or None,
-                    execution_id=getattr(self.orchestrator, "last_execution_id", None),
+                    provider=orchestrator.name,
+                    workflow_id=(
+                        None
+                        if encounter.scenario_id or settings.orchestrator_provider.lower() != "lyzr"
+                        else (settings.lyzr_workflow_id or None)
+                    ),
+                    execution_id=getattr(orchestrator, "last_execution_id", None),
                     status="failed",
                     started_at=orchestration_started,
                     completed_at=completed,
@@ -339,7 +393,7 @@ class EncounterService:
                     encounter,
                     "orchestration.failed_closed",
                     {
-                        "provider": self.orchestrator.name,
+                        "provider": orchestrator.name,
                         "execution_id": encounter.orchestration.execution_id,
                         "error_code": error_code,
                     },

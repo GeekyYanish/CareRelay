@@ -1,10 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, FileAudio, Keyboard, LoaderCircle, Mic, MicOff, RotateCcw, ShieldCheck, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { Disclaimer } from '../components/Disclaimer'
 import { StatusPill } from '../components/StatusPill'
 import { Timeline } from '../components/Timeline'
-import type { Encounter } from '../types'
+import type { Encounter, Scenario } from '../types'
 
 type SpeechRecognitionLike = {
   continuous: boolean
@@ -27,6 +28,7 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
 }
 
 export function PatientPage() {
+  const scenarios = useQuery({ queryKey: ['scenarios'], queryFn: api.scenarios })
   const [encounter, setEncounter] = useState<Encounter | null>(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -121,6 +123,14 @@ export function PatientPage() {
   async function begin(): Promise<Encounter> {
     const created = await api.createEncounter()
     return api.consent(created.id)
+  }
+
+  function runScenario(scenario: Scenario) {
+    stopListening()
+    void withBusy(scenario.id, async () => {
+      const consented = await begin()
+      setEncounter(await api.loadScenario(consented.id, scenario.id))
+    })
   }
 
   function runManual() {
@@ -318,16 +328,32 @@ export function PatientPage() {
             Begin safe intake
           </button>
         </div>
-        <aside className="intake-aside">
-          <span className="eyebrow">What happens next</span>
-          <h2>A clear, careful handoff.</h2>
-          <ol>
-            <li><span>01</span><div><strong>Safety screen</strong><p>Warning signs are checked before any automated review.</p></div></li>
-            <li><span>02</span><div><strong>Focused questions</strong><p>We only ask for details needed to clarify urgency.</p></div></li>
-            <li><span>03</span><div><strong>Next-step guidance</strong><p>You get a transparent recommendation and safety net.</p></div></li>
-          </ol>
-          <p className="intake-aside__note">Please do not include passwords, financial details, or record numbers.</p>
-        </aside>
+        <div className="scenario-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">One-click judge demo</span>
+              <h2>Seeded safety scenarios</h2>
+            </div>
+            <span className="count">{String(scenarios.data?.length || 0).padStart(2, '0')}</span>
+          </div>
+          <div className="scenario-list">
+            {scenarios.data?.map((scenario, index) => (
+              <button key={scenario.id} type="button" disabled={Boolean(busy)} onClick={() => runScenario(scenario)}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <strong>{scenario.name}</strong>
+                  <small>{scenario.summary}</small>
+                </div>
+                {busy === scenario.id ? <LoaderCircle className="spin" /> : <ChevronRight />}
+              </button>
+            ))}
+          </div>
+          {scenarios.isError && (
+            <p className="helper" role="alert" style={{ padding: '0 20px 16px' }}>
+              Demo scenarios unavailable. Free-text intake still works.
+            </p>
+          )}
+        </div>
       </section>
     </div>
   )

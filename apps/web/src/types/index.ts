@@ -16,9 +16,10 @@ export interface Question { id: string; fact: string; prompt: string; turn: numb
 export interface TimelineEvent { event_id: string; event_type: string; encounter_id: string; timestamp: string; payload: Record<string, unknown> }
 export interface OrchestrationRun { provider: string; workflow_id?: string; execution_id?: string; status: 'completed' | 'failed' | 'bypassed'; started_at: string; completed_at: string; duration_ms: number; error_code?: string }
 export interface Encounter {
-  id: string; tenant_id: string; patient_id: string; patient_name: string; status: string; created_at: string;
+  id: string; tenant_id: string; patient_id: string; patient_name: string; scenario_id?: string; status: string; created_at: string;
   consent: Record<string, unknown>; transcript: Array<{id:string; text:string; input_type:string}>; questions: Question[]; answers: unknown[];
   timeline: TimelineEvent[]; triage?: Triage; critic?: Critic; gate?: Gate; uncertainty_map?: UncertaintyMap; soap?: SoapDraft; orchestration?: OrchestrationRun; guidance?: Guidance;
   teach_back?: { understood: boolean; attempts: number; message: string };
 }
+export interface Scenario { id: string; name: string; summary: string; retrieval_quality: number; uncertainty: number; missing?: string[]; provider_timeout?: boolean }
 export interface Escalation { id: string; encounter_id: string; status: string; urgency: Urgency; reason: string; patient_name: string; assigned_to?: string; resolution_note?: string }
