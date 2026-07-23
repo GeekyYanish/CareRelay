@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react'
-import { Activity, ClipboardList, HeartPulse, LogOut, ShieldCheck, UserRoundSearch } from 'lucide-react'
+import { Activity, ClipboardList, FileText, HeartPulse, LogOut, ShieldCheck, UserRoundSearch } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
 import type { Role } from '../types'
@@ -7,7 +7,10 @@ import { Disclaimer } from './Disclaimer'
 
 const destinations: Record<Role, Array<{to:string; label:string; icon: typeof HeartPulse}>> = {
   patient: [{to:'/patient', label:'My CareRelay', icon:HeartPulse}],
-  clinician: [{to:'/clinician', label:'Clinical workspace', icon:ClipboardList}],
+  clinician: [
+    {to:'/clinician', label:'Clinical workspace', icon:ClipboardList},
+    {to:'/clinician/reports', label:'Reports', icon:FileText},
+  ],
   reviewer: [{to:'/reviewer', label:'Escalation console', icon:UserRoundSearch}],
   admin: [{to:'/admin', label:'Safety dashboard', icon:Activity}],
 }
@@ -20,7 +23,7 @@ export function AppShell({ children }: PropsWithChildren) {
     <div className="app-shell">
       <header className="topbar">
         <NavLink to={`/${user.role}`} className="brand" aria-label="CareRelay home"><span className="brand-mark"><ShieldCheck size={22} /></span><span>CareRelay<small>safety in the handoff</small></span></NavLink>
-        <nav aria-label="Primary navigation">{destinations[user.role].map(({to,label,icon:Icon}) => <NavLink key={to} to={to}><Icon size={17} />{label}</NavLink>)}</nav>
+        <nav aria-label="Primary navigation">{destinations[user.role].map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/clinician'}><Icon size={17} />{label}</NavLink>)}</nav>
         <div className="user-block"><span><strong>{user.name}</strong><small>{user.role}</small></span><button className="icon-button" aria-label="Sign out" onClick={() => { logout(); navigate('/login') }}><LogOut size={18} /></button></div>
       </header>
       <main id="main-content">{children}</main>

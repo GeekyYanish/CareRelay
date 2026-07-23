@@ -454,6 +454,20 @@ class EncounterService:
         encounter.soap = soap
         encounter.guidance = guidance_for(gate.urgency, [item.model_dump(mode="json") for item in citations])
         encounter.status = "escalated" if gate.escalated else "guidance-ready"
+        version = self.store.next_soap_version(encounter.id)
+        encounter.soap_revision_version = version
+        self.store.add_soap_revision(
+            tenant_id=encounter.tenant_id,
+            encounter_id=encounter.id,
+            version=version,
+            status="draft",
+            sections={
+                name: [s.model_dump(mode="json") for s in lines]
+                for name, lines in soap.sections.items()
+            },
+            author_id=user.id,
+            change_summary="Initial SOAP draft from documentation agent",
+        )
         self.store.save_encounter(encounter)
         if gate.escalated:
             escalation = self.store.create_escalation(encounter, gate.reason_codes[0].value)
@@ -472,21 +486,89 @@ class EncounterService:
     def patch_soap(self, encounter: EncounterView, sections: dict[str, list[str]], user: User) -> EncounterView:
         if not encounter.soap:
             raise ValueError("SOAP draft not available")
-        encounter.soap.sections = {
+        # Signed SOAP is immutable: editing creates a new draft revision.
+        creating_from_signed = encounter.soap.status == "signed"
+        new_sections = {
             name: [
-                SoapSentence(text=text, confidence=1.0, provenance=[{"source_id": user.id, "source_type": "clinician", "label": "Clinician edit"}])
+                SoapSentence(
+                    text=text,
+                    confidence=1.0,
+                    provenance=[
+                        {
+                            "source_id": user.id,
+                            "source_type": "clinician",
+                            "label": "Clinician edit",
+                        }
+                    ],
+                )
                 for text in sentences
             ]
             for name, sentences in sections.items()
         }
-        encounter.soap.updated_at = datetime.now(timezone.utc)
-        self.store.audit(user.tenant_id, encounter.id, user.id, "soap.edited", {"sections": list(sections)})
+        if creating_from_signed:
+            encounter.soap = encounter.soap.model_copy(
+                update={
+                    "id": str(uuid4()),
+                    "status": "draft",
+                    "sections": new_sections,
+                    "updated_at": datetime.now(timezone.utc),
+                    "signed_at": None,
+                }
+            )
+            change_summary = "New draft revision after signed note"
+        else:
+            encounter.soap.sections = new_sections
+            encounter.soap.updated_at = datetime.now(timezone.utc)
+            change_summary = "Draft SOAP edited"
+        version = self.store.next_soap_version(encounter.id)
+        encounter.soap_revision_version = version
+        encounter.assigned_clinician_id = encounter.assigned_clinician_id or user.id
+        self.store.add_soap_revision(
+            tenant_id=encounter.tenant_id,
+            encounter_id=encounter.id,
+            version=version,
+            status="draft",
+            sections={name: [s.model_dump(mode="json") for s in lines] for name, lines in new_sections.items()},
+            author_id=user.id,
+            change_summary=change_summary,
+        )
+        self.store.audit(
+            user.tenant_id,
+            encounter.id,
+            user.id,
+            "soap.edited",
+            {"sections": list(sections), "version": version, "from_signed": creating_from_signed},
+        )
         return self.store.save_encounter(encounter)
 
     def sign_soap(self, encounter: EncounterView, user: User) -> EncounterView:
         if not encounter.soap:
             raise ValueError("SOAP draft not available")
+        if encounter.soap.status == "signed":
+            raise ValueError("SOAP already signed")
         encounter.soap.status = "signed"
         encounter.soap.signed_at = datetime.now(timezone.utc)
-        self.store.audit(user.tenant_id, encounter.id, user.id, "soap.signed", {"soap_id": encounter.soap.id})
+        encounter.assigned_clinician_id = encounter.assigned_clinician_id or user.id
+        version = self.store.next_soap_version(encounter.id)
+        encounter.soap_revision_version = version
+        self.store.add_soap_revision(
+            tenant_id=encounter.tenant_id,
+            encounter_id=encounter.id,
+            version=version,
+            status="signed",
+            sections={
+                name: [s.model_dump(mode="json") for s in lines]
+                for name, lines in encounter.soap.sections.items()
+            },
+            author_id=user.id,
+            change_summary="SOAP signed",
+            signed_at=encounter.soap.signed_at,
+        )
+        self.store.audit(
+            user.tenant_id,
+            encounter.id,
+            user.id,
+            "soap.signed",
+            {"soap_id": encounter.soap.id, "version": version},
+        )
         return self.store.save_encounter(encounter)

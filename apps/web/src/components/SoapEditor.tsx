@@ -11,13 +11,18 @@ interface SoapEditorProps {
 export function SoapEditor({ encounter, onSave, onSign }: SoapEditorProps) {
   const [sections, setSections] = useState<Record<string,string[]>>(() => Object.fromEntries(Object.entries(encounter.soap?.sections || {}).map(([name, lines]) => [name, lines.map((line) => line.text)])))
   const [busy, setBusy] = useState(false)
+  const [revising, setRevising] = useState(false)
   if (!encounter.soap) return null
+  const editable = encounter.soap.status !== 'signed' || revising
   async function act(callback: () => Promise<void>) { setBusy(true); try { await callback() } finally { setBusy(false) } }
   return (
     <section className="instrument-card soap" aria-labelledby="soap-title">
       <div className="section-heading"><div><span className="eyebrow">Editable draft</span><h2 id="soap-title">SOAP with sentence provenance</h2></div><span className={`draft-state ${encounter.soap.status}`}>{encounter.soap.status === 'signed' ? <Check size={14} /> : <FileSignature size={14} />}{encounter.soap.status}</span></div>
+      {encounter.soap.status === 'signed' && !revising && (
+        <p className="helper">Signed notes are immutable. Start a new revision to edit; history is retained.</p>
+      )}
       {Object.entries(encounter.soap.sections).map(([name, originalLines]) => (
-        <fieldset key={name} disabled={encounter.soap?.status === 'signed'}>
+        <fieldset key={name} disabled={!editable}>
           <legend>{name}</legend>
           {originalLines.map((line, index) => <div className="soap-line" key={line.id}>
             <textarea aria-label={`${name} sentence ${index + 1}`} value={sections[name]?.[index] || ''} onChange={(event) => setSections((current) => ({...current, [name]: current[name].map((value, lineIndex) => lineIndex === index ? event.target.value : value)}))} />
@@ -25,7 +30,16 @@ export function SoapEditor({ encounter, onSave, onSign }: SoapEditorProps) {
           </div>)}
         </fieldset>
       ))}
-      {encounter.soap.status !== 'signed' && <div className="action-row"><button className="button secondary" disabled={busy} onClick={() => act(() => onSave(sections))}><Save size={17} />Save edits</button><button className="button primary" disabled={busy} onClick={() => act(onSign)}><FileSignature size={17} />Sign draft</button></div>}
+      {editable ? (
+        <div className="action-row">
+          <button className="button secondary" disabled={busy} onClick={() => act(() => onSave(sections))}><Save size={17} />Save edits</button>
+          <button className="button primary" disabled={busy} onClick={() => act(onSign)}><FileSignature size={17} />Sign draft</button>
+        </div>
+      ) : (
+        <div className="action-row">
+          <button className="button secondary" type="button" onClick={() => setRevising(true)}>Create new revision</button>
+        </div>
+      )}
     </section>
   )
 }

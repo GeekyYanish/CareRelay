@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from .agents.providers import get_agent_provider, get_retrieval_provider
 from .auth import create_token, current_user, require_roles, verify_password
@@ -17,14 +17,18 @@ from .database import database_ready, initialize_database
 from .event_bus import get_event_transport
 from .mcp_ops import OpsMcpAdapter
 from .orchestration import LyzrSuperFlowOrchestrator, OrchestrationError
+from .reports import ReportService
 from .rules import RedFlagEngine
 from .schemas import (
     AnswerRequest,
+    AssignClinicianRequest,
     ConsentRequest,
     EncounterCreate,
     EncounterView,
     IngestRequest,
     LoginRequest,
+    ReportDetail,
+    ReportListResponse,
     ResolutionRequest,
     Role,
     SignupRequest,
@@ -44,6 +48,7 @@ configure_logging()
 store = Store()
 rules = RedFlagEngine()
 encounters = EncounterService(store, rules)
+reports = ReportService(store)
 ops_mcp = OpsMcpAdapter()
 ws_tickets: dict[str, dict[str, Any]] = {}
 
@@ -256,12 +261,73 @@ def get_soap(encounter_id: str, user: User = Depends(require_roles(Role.CLINICIA
 
 @app.patch("/api/v1/encounters/{encounter_id}/soap", response_model=EncounterView)
 def patch_soap(encounter_id: str, payload: SoapPatchRequest, user: User = Depends(require_roles(Role.CLINICIAN))):
-    return encounters.patch_soap(encounter_for(user, encounter_id), payload.sections, user)
+    try:
+        return encounters.patch_soap(encounter_for(user, encounter_id), payload.sections, user)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @app.post("/api/v1/encounters/{encounter_id}/soap/sign-off", response_model=EncounterView)
 def sign_soap(encounter_id: str, user: User = Depends(require_roles(Role.CLINICIAN))):
-    return encounters.sign_soap(encounter_for(user, encounter_id), user)
+    try:
+        return encounters.sign_soap(encounter_for(user, encounter_id), user)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/api/v1/clinician/reports", response_model=ReportListResponse)
+def list_clinician_reports(
+    q: str | None = Query(default=None),
+    urgency: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    assigned_to: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    user: User = Depends(require_roles(Role.CLINICIAN, Role.ADMIN)),
+):
+    return reports.list_reports(
+        user,
+        q=q,
+        urgency=urgency,
+        status=status,
+        assigned_to=assigned_to,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@app.get("/api/v1/clinician/reports/{encounter_id}", response_model=ReportDetail)
+def get_clinician_report(
+    encounter_id: str, user: User = Depends(require_roles(Role.CLINICIAN, Role.ADMIN))
+):
+    try:
+        return reports.get_report(user, encounter_id)
+    except KeyError as exc:
+        raise HTTPException(404, "Report not found") from exc
+
+
+@app.get("/api/v1/clinician/reports/{encounter_id}/export", response_class=HTMLResponse)
+def export_clinician_report(
+    encounter_id: str, user: User = Depends(require_roles(Role.CLINICIAN, Role.ADMIN))
+):
+    try:
+        return HTMLResponse(reports.export_html(user, encounter_id))
+    except KeyError as exc:
+        raise HTTPException(404, "Report not found") from exc
+
+
+@app.post("/api/v1/clinician/reports/{encounter_id}/assign", response_model=EncounterView)
+def assign_clinician_report(
+    encounter_id: str,
+    payload: AssignClinicianRequest,
+    user: User = Depends(require_roles(Role.CLINICIAN, Role.ADMIN)),
+):
+    try:
+        return store.assign_clinician(user.tenant_id, encounter_id, payload.clinician_id, user)
+    except KeyError as exc:
+        raise HTTPException(404, "Encounter not found") from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/v1/encounters/{encounter_id}/teach-back", response_model=EncounterView)
@@ -306,8 +372,25 @@ def claim(escalation_id: str, user: User = Depends(require_roles(Role.REVIEWER))
 @app.post("/api/v1/escalations/{escalation_id}/resolve")
 def resolve(escalation_id: str, payload: ResolutionRequest, user: User = Depends(require_roles(Role.REVIEWER))):
     try:
-        result = store.update_escalation(user.tenant_id, escalation_id, "resolved", user.id, payload.note)
-        store.audit(user.tenant_id, result["encounter_id"], user.id, "escalation.resolved", {"escalation_id": escalation_id, "note": payload.note})
+        result = store.update_escalation(
+            user.tenant_id,
+            escalation_id,
+            "resolved",
+            user.id,
+            payload.note,
+            payload.category,
+        )
+        store.audit(
+            user.tenant_id,
+            result["encounter_id"],
+            user.id,
+            "escalation.resolved",
+            {
+                "escalation_id": escalation_id,
+                "note": payload.note,
+                "category": payload.category,
+            },
+        )
         return result
     except KeyError as exc:
         raise HTTPException(404, "Escalation not found") from exc

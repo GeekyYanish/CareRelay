@@ -1,4 +1,11 @@
-import type { Encounter, Escalation, Scenario, User } from '../types'
+import type {
+  Encounter,
+  Escalation,
+  ReportDetail,
+  ReportListResponse,
+  Scenario,
+  User,
+} from '../types'
 
 const base = import.meta.env.VITE_API_BASE || '/api/v1'
 
@@ -43,10 +50,35 @@ export const api = {
   teachBack: (id: string, answer: string) => request<Encounter>(`/encounters/${id}/teach-back`, { method: 'POST', body: JSON.stringify({ answer }) }),
   patchSoap: (id: string, sections: Record<string,string[]>) => request<Encounter>(`/encounters/${id}/soap`, { method: 'PATCH', body: JSON.stringify({ sections }) }),
   signSoap: (id: string) => request<Encounter>(`/encounters/${id}/soap/sign-off`, { method: 'POST' }),
+  listReports: (params: {
+    q?: string
+    urgency?: string
+    status?: string
+    assigned_to?: string
+    page?: number
+    page_size?: number
+  } = {}) => {
+    const query = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') query.set(key, String(value))
+    })
+    const suffix = query.toString() ? `?${query}` : ''
+    return request<ReportListResponse>(`/clinician/reports${suffix}`)
+  },
+  getReport: (id: string) => request<ReportDetail>(`/clinician/reports/${id}`),
+  assignReport: (id: string, clinician_id: string | null) =>
+    request<Encounter>(`/clinician/reports/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ clinician_id }),
+    }),
   audit: (id: string) => request<Array<Record<string, unknown>>>(`/audit/encounters/${id}`),
   escalations: () => request<Escalation[]>('/escalations'),
   claim: (id: string) => request<Escalation>(`/escalations/${id}/claim`, { method: 'POST' }),
-  resolve: (id: string, note: string) => request<Escalation>(`/escalations/${id}/resolve`, { method: 'POST', body: JSON.stringify({ note }) }),
+  resolve: (id: string, note: string, category = 'clinical_handoff') =>
+    request<Escalation>(`/escalations/${id}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ note, category }),
+    }),
   metrics: () => request<Record<string, unknown>>('/admin/metrics'),
   integrations: () => request<Record<string, unknown>>('/admin/integrations'),
   verifyLyzr: () => request<Record<string, unknown>>('/admin/integrations/lyzr/verify', { method: 'POST' }),

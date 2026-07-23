@@ -20,6 +20,27 @@ export interface Encounter {
   consent: Record<string, unknown>; transcript: Array<{id:string; text:string; input_type:string}>; questions: Question[]; answers: unknown[];
   timeline: TimelineEvent[]; triage?: Triage; critic?: Critic; gate?: Gate; uncertainty_map?: UncertaintyMap; soap?: SoapDraft; orchestration?: OrchestrationRun; guidance?: Guidance;
   teach_back?: { understood: boolean; attempts: number; message: string };
+  assigned_clinician_id?: string;
+  soap_revision_version?: number;
 }
 export interface Scenario { id: string; name: string; summary: string; retrieval_quality: number; uncertainty: number; missing?: string[]; provider_timeout?: boolean }
-export interface Escalation { id: string; encounter_id: string; status: string; urgency: Urgency; reason: string; patient_name: string; assigned_to?: string; resolution_note?: string }
+export interface Escalation {
+  id: string; encounter_id: string; status: string; urgency: Urgency; reason: string; patient_name: string;
+  assigned_to?: string; resolution_note?: string; resolution_category?: string;
+  created_at?: string; age_hours?: number; sla_hours?: number; sla_breached?: boolean;
+}
+export interface SoapRevision {
+  id: string; encounter_id: string; version: number; status: 'draft' | 'signed'; sections: Record<string, unknown>;
+  author_id: string; change_summary: string; created_at: string; signed_at?: string;
+}
+export interface ReportSummary {
+  encounter_id: string; patient_id: string; patient_name: string; status: string;
+  report_status: 'none' | 'draft' | 'signed'; urgency?: Urgency; created_at: string; updated_at: string;
+  assigned_clinician_id?: string; soap_signed: boolean; escalated: boolean; teach_back_understood?: boolean | null;
+}
+export interface ReportListResponse { items: ReportSummary[]; page: number; page_size: number; total: number }
+export interface ReportDetail {
+  encounter: Encounter; report_status: 'none' | 'draft' | 'signed'; assigned_clinician_id?: string;
+  soap_revisions: SoapRevision[]; escalations: Array<Record<string, unknown>>; audit_timeline: Array<Record<string, unknown>>;
+  citations: Citation[];
+}

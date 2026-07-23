@@ -27,8 +27,8 @@ Until `LYZR_API_KEY` and `LYZR_WORKFLOW_ID` are set, readiness stays false and n
 | Role | Screen | Capabilities |
 |---|---|---|
 | Patient | `/patient` | Consent, text/voice-transcript intake, adaptive questions, urgency guidance, citations, timeline, teach-back |
-| Clinician | `/clinician` | Encounter list, uncertainty map, sentence-provenanced SOAP edit + sign-off |
-| Reviewer | `/reviewer` | Escalation queue, claim, resolve with required note |
+| Clinician | `/clinician`, `/clinician/reports` | Workspace SOAP edit/sign-off; searchable paginated reports; versioned SOAP; print-ready export |
+| Reviewer | `/reviewer` | Priority escalation queue, SLA age, claim, resolve with category + note |
 | Admin | `/admin` | Outcome metrics, integration readiness, Lyzr verify, read-only ops snapshot |
 
 ### Safety model (summary)

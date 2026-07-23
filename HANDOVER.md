@@ -13,8 +13,8 @@ Use this document together with [README.md](README.md). The README covers day-on
 CareRelay is a multi-role clinical decision-support **demo**:
 
 - **Patient** submits symptoms → gets gated urgency guidance + teach-back.
-- **Clinician** reviews uncertainty + editable SOAP with sentence provenance + sign-off.
-- **Reviewer** claims/resolves durable escalations.
+- **Clinician** reviews uncertainty + editable SOAP with sentence provenance + sign-off, and browses tenant-scoped **Reports** (search, filter, export).
+- **Reviewer** claims/resolves durable escalations (priority + SLA + resolution category).
 - **Admin** sees metrics and integration readiness.
 
 Hard product boundaries (by design):
@@ -22,6 +22,7 @@ Hard product boundaries (by design):
 - No diagnosis, prescribing, treatment plans, or EHR write-back.
 - No raw chain-of-thought storage or display.
 - Deterministic CareRelay safety gate always owns final urgency — agents cannot override Emergency/Same-Day or approve low-risk alone.
+- **Signed SOAP is immutable**; later edits create a new revision with author, timestamp, and change history.
 
 Authoritative sources when docs conflict:
 
@@ -143,7 +144,8 @@ Base path: `/api/v1`
 | Auth | `POST /auth/login`, `GET /auth/me`, `POST /auth/ws-ticket` |
 | Demo | `GET /demo/scenarios` |
 | Encounters | CRUD-ish: create/list/get, consent, demo-scenario, ingest, answers, triage, uncertainty, delta, SOAP get/patch/sign-off, teach-back, escalate |
-| Escalations | `GET /escalations`, claim, resolve |
+| Clinician reports | `GET /clinician/reports` (filter/paginate), `GET /clinician/reports/{id}`, `GET .../export` (HTML print/PDF), `POST .../assign` |
+| Escalations | `GET /escalations` (priority + SLA), claim, resolve (note + category) |
 | Admin | metrics, integrations, Lyzr verify, ops snapshot |
 | Audit | `GET /audit/encounters/{id}` |
 | A2A | `/a2a/{triage\|critic\|documentation}` (+ well-known cards) |

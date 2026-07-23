@@ -8,6 +8,8 @@ const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({defa
 const SignupPage = lazy(() => import('./pages/SignupPage').then((module) => ({default:module.SignupPage})))
 const PatientPage = lazy(() => import('./pages/PatientPage').then((module) => ({default:module.PatientPage})))
 const ClinicianPage = lazy(() => import('./pages/ClinicianPage').then((module) => ({default:module.ClinicianPage})))
+const ClinicianReportsPage = lazy(() => import('./pages/ClinicianReportsPage').then((module) => ({default:module.ClinicianReportsPage})))
+const ClinicianReportDetailPage = lazy(() => import('./pages/ClinicianReportDetailPage').then((module) => ({default:module.ClinicianReportDetailPage})))
 const ReviewerPage = lazy(() => import('./pages/ReviewerPage').then((module) => ({default:module.ReviewerPage})))
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({default:module.AdminPage})))
 
@@ -25,6 +27,8 @@ export function App() {
     <Route path="/signup" element={user ? <Navigate to={`/${user.role}`} replace /> : <SignupPage />} />
     <Route path="/patient" element={<ProtectedRoute role="patient"><PatientPage /></ProtectedRoute>} />
     <Route path="/clinician" element={<ProtectedRoute role="clinician"><ClinicianPage /></ProtectedRoute>} />
+    <Route path="/clinician/reports" element={<ProtectedRoute role="clinician"><ClinicianReportsPage /></ProtectedRoute>} />
+    <Route path="/clinician/reports/:encounterId" element={<ProtectedRoute role="clinician"><ClinicianReportDetailPage /></ProtectedRoute>} />
     <Route path="/reviewer" element={<ProtectedRoute role="reviewer"><ReviewerPage /></ProtectedRoute>} />
     <Route path="/admin" element={<ProtectedRoute role="admin"><AdminPage /></ProtectedRoute>} />
     <Route path="*" element={<Navigate to={user ? `/${user.role}` : '/login'} replace />} />

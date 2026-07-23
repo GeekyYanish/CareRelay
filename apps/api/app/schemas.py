@@ -226,10 +226,6 @@ class SoapPatchRequest(BaseModel):
     sections: dict[str, list[str]]
 
 
-class ResolutionRequest(BaseModel):
-    note: str = Field(min_length=5, max_length=2000)
-
-
 class EncounterView(BaseModel):
     id: str
     tenant_id: str
@@ -251,6 +247,67 @@ class EncounterView(BaseModel):
     orchestration: OrchestrationRun | None = None
     guidance: dict[str, Any] | None = None
     teach_back: dict[str, Any] | None = None
+    assigned_clinician_id: str | None = None
+    soap_revision_version: int | None = None
+
+
+class SoapRevisionView(BaseModel):
+    id: str
+    encounter_id: str
+    version: int
+    status: Literal["draft", "signed"]
+    sections: dict[str, Any]
+    author_id: str
+    change_summary: str = ""
+    created_at: datetime
+    signed_at: datetime | None = None
+
+
+class ReportSummary(BaseModel):
+    encounter_id: str
+    patient_id: str
+    patient_name: str
+    status: str
+    report_status: Literal["none", "draft", "signed"]
+    urgency: Urgency | None = None
+    created_at: datetime
+    updated_at: datetime
+    assigned_clinician_id: str | None = None
+    soap_signed: bool = False
+    escalated: bool = False
+    teach_back_understood: bool | None = None
+
+
+class ReportListResponse(BaseModel):
+    items: list[ReportSummary]
+    page: int
+    page_size: int
+    total: int
+
+
+class ReportDetail(BaseModel):
+    encounter: EncounterView
+    report_status: Literal["none", "draft", "signed"]
+    assigned_clinician_id: str | None = None
+    soap_revisions: list[SoapRevisionView] = []
+    escalations: list[dict[str, Any]] = []
+    audit_timeline: list[dict[str, Any]] = []
+    citations: list[EvidenceCitation] = []
+
+
+class AssignClinicianRequest(BaseModel):
+    clinician_id: str | None = None
+
+
+class ResolutionRequest(BaseModel):
+    note: str = Field(min_length=5, max_length=2000)
+    category: Literal[
+        "clinical_handoff",
+        "patient_advised",
+        "false_alarm",
+        "needs_follow_up",
+        "other",
+    ] = "clinical_handoff"
 
 
 class EventEnvelope(BaseModel):

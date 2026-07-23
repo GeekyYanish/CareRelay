@@ -5,6 +5,7 @@ The refined source has exactly 19 logical nodes. They remain explicit boundaries
 | Source node | MVP boundary |
 |---|---|
 | Clinician Workspace | `/clinician`, `ClinicianPage`, `SoapEditor` |
+| Clinician Reports | `/clinician/reports`, list/detail/export, versioned SOAP |
 | Patient Experience | `/patient`, `PatientPage` |
 | Clinical Escalation Console | `/reviewer`, `ReviewerPage` |
 | Safety Dashboard | `/admin`, `AdminPage` |
@@ -23,6 +24,11 @@ The refined source has exactly 19 logical nodes. They remain explicit boundaries
 | Consent & Privacy Service | consent route + `mask_phi` boundary |
 | Escalation Queue (DLQ) | durable PostgreSQL escalation records; Redis event fan-out |
 | Evidence Retrieval Agent | `QdrantRetrievalProvider` with in-memory fallback |
+| Clinician Reports | `/clinician/reports*` APIs + UI; versioned SOAP; HTML export |
+
+### Clinician reports
+
+Denormalized encounter columns (`urgency`, `report_status`, `assigned_clinician_id`, `updated_at`) enable SQL filter/pagination. Table `soap_revisions` stores immutable signed versions; edits after sign create a new draft revision. Report list/detail/export endpoints are tenant-scoped and audit-logged. Redis short-TTL cache invalidates on encounter save. Escalations are priority-sorted with SLA age/breach and resolution categories.
 
 ```mermaid
 flowchart LR
