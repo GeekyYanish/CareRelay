@@ -160,3 +160,43 @@ def test_audit_rows_reject_mutation():
                 record = session.scalar(select(AuditRecord).limit(1))
                 assert record is not None
                 session.delete(record)
+
+
+def test_signup_creates_patient_and_allows_login():
+    with TestClient(app) as client:
+        email = "new.patient@example.com"
+        created = client.post(
+            "/api/v1/auth/signup",
+            json={"name": "New Patient", "email": email, "password": "securepass1"},
+        )
+        assert created.status_code == 201, created.text
+        body = created.json()
+        assert body["user"]["email"] == email
+        assert body["user"]["role"] == "patient"
+        assert body["access_token"]
+
+        duplicate = client.post(
+            "/api/v1/auth/signup",
+            json={"name": "Other", "email": email.upper(), "password": "securepass1"},
+        )
+        assert duplicate.status_code == 409
+
+        short = client.post(
+            "/api/v1/auth/signup",
+            json={"name": "Tiny", "email": "tiny@example.com", "password": "short"},
+        )
+        assert short.status_code == 422
+
+        headers = login(client, email, "securepass1")
+        me = client.get("/api/v1/auth/me", headers=headers)
+        assert me.status_code == 200
+        assert me.json()["name"] == "New Patient"
+
+
+def test_login_rejects_invalid_credentials():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "patient@demo.carerelay.local", "password": "wrong-password"},
+        )
+        assert response.status_code == 401

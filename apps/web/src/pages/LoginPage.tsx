@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { api } from '../api/client'
 import { Disclaimer } from '../components/Disclaimer'
@@ -23,15 +23,22 @@ export function LoginPage() {
   const navigate = useNavigate()
   const setSession = useAuth((state) => state.setSession)
   const [serverError, setServerError] = useState('')
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<LoginForm>({ resolver: zodResolver(schema), defaultValues: { email: demoAccounts[0].email, password: demoAccounts[0].password } })
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: '', password: '' },
+  })
+
   async function submit(values: LoginForm) {
     setServerError('')
     try {
       const result = await api.login(values.email, values.password)
       setSession(result.access_token, result.user)
       navigate(`/${result.user.role}`)
-    } catch (error) { setServerError(error instanceof Error ? error.message : 'Unable to sign in') }
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : 'Unable to sign in')
+    }
   }
+
   return (
     <main className="login-page" id="main-content">
       <section className="login-story">
@@ -41,20 +48,36 @@ export function LoginPage() {
       </section>
       <section className="login-panel">
         <div className="login-card">
-          <div><span className="eyebrow">Secure demo access</span><h2>Choose a seat at the handoff</h2><p>All accounts are synthetic and pre-seeded.</p></div>
+          <div><span className="eyebrow">Secure access</span><h2>Sign in to CareRelay</h2><p>Patients can create an account. Staff roles use provisioned credentials.</p></div>
           <div className="account-grid" aria-label="Demo account shortcuts">
-            {demoAccounts.map((account) => <button key={account.role} type="button" onClick={() => { setValue('email', account.email); setValue('password', account.password) }}><span>{account.role.slice(0,1).toUpperCase()}</span><strong>{account.label}</strong><small>{account.role}</small></button>)}
+            {demoAccounts.map((account) => (
+              <button
+                key={account.role}
+                type="button"
+                onClick={() => { setValue('email', account.email); setValue('password', account.password) }}
+              >
+                <span>{account.role.slice(0,1).toUpperCase()}</span>
+                <strong>{account.label}</strong>
+                <small>{account.role}</small>
+              </button>
+            ))}
           </div>
           <form onSubmit={handleSubmit(submit)} noValidate>
-            <label>Email<input type="email" autoComplete="username" {...register('email')} /></label>{errors.email && <p role="alert" className="field-error">Enter a valid email.</p>}
-            <label>Password<input type="password" autoComplete="current-password" {...register('password')} /></label>{errors.password && <p role="alert" className="field-error">Password is required.</p>}
+            <label>Email<input type="email" autoComplete="username" {...register('email')} /></label>
+            {errors.email && <p role="alert" className="field-error">Enter a valid email.</p>}
+            <label>Password<input type="password" autoComplete="current-password" {...register('password')} /></label>
+            {errors.password && <p role="alert" className="field-error">Password is required.</p>}
             {serverError && <p role="alert" className="form-error">{serverError}</p>}
-            <button className="button primary full" disabled={isSubmitting}><LockKeyhole size={17} />{isSubmitting ? 'Checking…' : 'Enter CareRelay'}<ArrowRight size={17} /></button>
+            <button className="button primary full" disabled={isSubmitting}>
+              <LockKeyhole size={17} />
+              {isSubmitting ? 'Checking…' : 'Sign in'}
+              <ArrowRight size={17} />
+            </button>
           </form>
+          <p className="auth-switch">New patient? <Link to="/signup">Create an account</Link></p>
           <Disclaimer compact />
         </div>
       </section>
     </main>
   )
 }
-

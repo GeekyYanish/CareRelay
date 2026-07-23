@@ -19,6 +19,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   login: (email: string, password: string) => request<{access_token:string; user:User}>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  signup: (name: string, email: string, password: string) =>
+    request<{access_token:string; user:User}>('/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
   scenarios: () => request<Scenario[]>('/demo/scenarios'),
   encounters: () => request<Encounter[]>('/encounters'),
   encounter: (id: string) => request<Encounter>(`/encounters/${id}`),

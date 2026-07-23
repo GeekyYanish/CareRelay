@@ -54,6 +54,31 @@ class Store:
         with session_scope() as session:
             return session.scalar(select(UserRecord).where(UserRecord.email == email))
 
+    def create_user(
+        self,
+        *,
+        email: str,
+        password: str,
+        name: str,
+        role: Role = Role.PATIENT,
+        tenant_id: str | None = None,
+    ) -> User:
+        normalized = email.strip().lower()
+        with session_scope() as session:
+            if session.scalar(select(UserRecord).where(UserRecord.email == normalized)):
+                raise ValueError("EMAIL_TAKEN")
+            record = UserRecord(
+                id=str(uuid4()),
+                tenant_id=tenant_id or self.tenant_id,
+                email=normalized,
+                name=name.strip(),
+                role=role.value,
+                password_hash=hash_password(password),
+            )
+            session.add(record)
+            session.flush()
+            return self.user_view(record)
+
     @staticmethod
     def user_view(record: UserRecord) -> User:
         return User(id=record.id, tenant_id=record.tenant_id, email=record.email, name=record.name, role=Role(record.role))

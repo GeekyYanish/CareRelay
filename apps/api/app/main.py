@@ -27,6 +27,7 @@ from .schemas import (
     LoginRequest,
     ResolutionRequest,
     Role,
+    SignupRequest,
     SoapPatchRequest,
     TeachBackRequest,
     TokenResponse,
@@ -112,6 +113,23 @@ def login(payload: LoginRequest):
     if not record or not verify_password(payload.password, record.password_hash):
         raise HTTPException(401, "Invalid email or password")
     user = store.user_view(record)
+    return TokenResponse(access_token=create_token(user), user=user)
+
+
+@app.post("/api/v1/auth/signup", response_model=TokenResponse, status_code=201)
+def signup(payload: SignupRequest):
+    """Public registration creates a patient account only; staff roles stay provisioned."""
+    try:
+        user = store.create_user(
+            email=payload.email,
+            password=payload.password,
+            name=payload.name,
+            role=Role.PATIENT,
+        )
+    except ValueError as exc:
+        if str(exc) == "EMAIL_TAKEN":
+            raise HTTPException(409, "An account with this email already exists") from exc
+        raise
     return TokenResponse(access_token=create_token(user), user=user)
 
 
