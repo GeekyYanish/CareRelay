@@ -51,6 +51,10 @@ ws_tickets: dict[str, dict[str, Any]] = {}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database()
+    if settings.provision_demo_users:
+        from .provision_staff import provision_demo_users
+
+        provision_demo_users(store)
     yield
 
 

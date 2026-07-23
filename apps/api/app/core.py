@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     lyzr_timeout_seconds: float = 45.0
     lyzr_poll_interval_seconds: float = 0.5
     require_live_orchestration: bool = False
+    allow_local_origins: bool = False
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:5174"
     public_api_base_url: str = "http://localhost:8000"
     google_cloud_project: str = ""
@@ -49,6 +50,7 @@ class Settings(BaseSettings):
     retrieval_threshold: float = 0.70
     low_risk_uncertainty_max: float = 0.25
     provider_timeout_seconds: float = 2.0
+    provision_demo_users: bool = False
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -74,7 +76,9 @@ class Settings(BaseSettings):
             errors.append("LYZR_API_KEY and LYZR_WORKFLOW_ID are required")
         if not self.require_live_orchestration:
             errors.append("REQUIRE_LIVE_ORCHESTRATION must be true")
-        if any("localhost" in origin or "127.0.0.1" in origin for origin in self.cors_origins.split(",")):
+        if not self.allow_local_origins and any(
+            "localhost" in origin or "127.0.0.1" in origin for origin in self.cors_origins.split(",")
+        ):
             errors.append("CORS_ORIGINS must contain hosted HTTPS origins only")
         if errors:
             raise ValueError("Unsafe production configuration: " + "; ".join(errors))

@@ -7,17 +7,25 @@ import { z } from 'zod'
 import { api } from '../api/client'
 import { Disclaimer } from '../components/Disclaimer'
 import { useAuth } from '../stores/auth'
+import type { Role } from '../types'
 
 const schema = z.object({ email: z.string().email(), password: z.string().min(4) })
 type LoginForm = z.infer<typeof schema>
+
+const demoAccounts: Array<{role: Role; email: string; password: string; label: string}> = [
+  { role: 'patient', email: 'patient@demo.carerelay.local', password: 'demo-patient', label: 'Patient journey' },
+  { role: 'clinician', email: 'clinician@demo.carerelay.local', password: 'demo-clinician', label: 'Clinical workspace' },
+  { role: 'reviewer', email: 'reviewer@demo.carerelay.local', password: 'demo-reviewer', label: 'Review escalations' },
+  { role: 'admin', email: 'admin@demo.carerelay.local', password: 'demo-admin', label: 'Safety operations' },
+]
 
 export function LoginPage() {
   const navigate = useNavigate()
   const setSession = useAuth((state) => state.setSession)
   const [serverError, setServerError] = useState('')
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(schema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: demoAccounts[0].email, password: demoAccounts[0].password },
   })
 
   async function submit(values: LoginForm) {
@@ -40,7 +48,20 @@ export function LoginPage() {
       </section>
       <section className="login-panel">
         <div className="login-card">
-          <div><span className="eyebrow">Secure access</span><h2>Sign in to CareRelay</h2><p>Patients can create an account. Staff roles use provisioned credentials.</p></div>
+          <div><span className="eyebrow">Secure access</span><h2>Sign in to CareRelay</h2><p>Use a provisioned demo seat, or create a new patient account.</p></div>
+          <div className="account-grid" aria-label="Demo account shortcuts">
+            {demoAccounts.map((account) => (
+              <button
+                key={account.role}
+                type="button"
+                onClick={() => { setValue('email', account.email); setValue('password', account.password) }}
+              >
+                <span>{account.role.slice(0, 1).toUpperCase()}</span>
+                <strong>{account.label}</strong>
+                <small>{account.role}</small>
+              </button>
+            ))}
+          </div>
           <form onSubmit={handleSubmit(submit)} noValidate>
             <label>Email<input type="email" autoComplete="username" {...register('email')} /></label>
             {errors.email && <p role="alert" className="field-error">Enter a valid email.</p>}

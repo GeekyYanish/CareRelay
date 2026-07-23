@@ -44,6 +44,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
       CLINICAL_RULES_PATH: /packages/clinical-rules/clinical_v1.yaml
+      ALLOW_LOCAL_ORIGINS: "true"
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      PUBLIC_API_BASE_URL: http://localhost:8001
+      FORWARDED_ALLOW_IPS: "*"
+      PROVISION_DEMO_USERS: "true"
     ports:
       - "8001:8000"
     depends_on:

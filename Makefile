@@ -1,4 +1,4 @@
-.PHONY: up down logs test test-api test-web test-e2e build generate-types verify-lyzr
+.PHONY: up down logs test test-api test-web test-e2e build generate-types verify-lyzr provision-staff
 
 up:
 	@test -f .env || cp .env.example .env
@@ -29,3 +29,6 @@ generate-types:
 
 verify-lyzr:
 	docker compose exec api python -m app.verify_lyzr
+
+provision-staff:
+	docker compose exec api python -m app.provision_staff
