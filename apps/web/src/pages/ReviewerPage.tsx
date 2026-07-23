@@ -12,6 +12,17 @@ const categories = [
   { value: 'other', label: 'Other' },
 ] as const
 
+/** Turn API hours into something a person can skim (e.g. 0.26 → "16 min"). */
+function formatDuration(hours: number | undefined, fallbackHours: number): string {
+  const totalMinutes = Math.max(0, Math.round((hours ?? fallbackHours) * 60))
+  if (totalMinutes < 60) return `${totalMinutes} min`
+  const hrs = Math.floor(totalMinutes / 60)
+  const mins = totalMinutes % 60
+  if (mins === 0) return hrs === 1 ? '1 hour' : `${hrs} hours`
+  if (hrs === 1) return `1 hour ${mins} min`
+  return `${hrs} hours ${mins} min`
+}
+
 export function ReviewerPage() {
   const client = useQueryClient()
   const query = useQuery({ queryKey: ['escalations'], queryFn: api.escalations })
@@ -28,7 +39,7 @@ export function ReviewerPage() {
         <div>
           <span className="eyebrow">Human safety net</span>
           <h1>Escalation console</h1>
-          <p>Priority-sorted queue with SLA age. Resolve only with a category and audit note.</p>
+          <p>Priority-sorted queue with how long each case has been waiting. Resolve only with a category and audit note.</p>
         </div>
         <div className="hero-seal danger">
           <ShieldAlert />
@@ -50,9 +61,9 @@ export function ReviewerPage() {
                 <span className="case-state">{item.status}</span>
               </div>
               <div className="sla-row">
-                <span>Age: {item.age_hours ?? 0}h</span>
-                <span>SLA: {item.sla_hours ?? 24}h</span>
-                {item.sla_breached ? <strong className="sla-breach">SLA breached</strong> : <span>Within SLA</span>}
+                <span>Waiting: {formatDuration(item.age_hours, 0)}</span>
+                <span>Target: {formatDuration(item.sla_hours, 24)}</span>
+                {item.sla_breached ? <strong className="sla-breach">Past due</strong> : <span>On time</span>}
               </div>
               <div className="reason-box">
                 <code>{item.reason}</code>
