@@ -7,24 +7,10 @@ import { StatusPill } from '../components/StatusPill'
 import { Timeline } from '../components/Timeline'
 import type { Encounter, Scenario } from '../types'
 
-type SpeechRecognitionLike = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  start: () => void
-  stop: () => void
-  abort: () => void
-  onresult: ((event: { resultIndex: number; results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null
-  onerror: ((event: { error: string }) => void) | null
-  onend: (() => void) | null
-}
-
-function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
-  const scope = window as Window & {
-    SpeechRecognition?: new () => SpeechRecognitionLike
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike
-  }
-  return scope.SpeechRecognition || scope.webkitSpeechRecognition || null
+function pickRecorderMime(): string | undefined {
+  if (typeof MediaRecorder === 'undefined') return undefined
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type))
 }
 
 export function PatientPage() {
@@ -36,76 +22,104 @@ export function PatientPage() {
   const [inputType, setInputType] = useState<'text' | 'voice-transcript'>('text')
   const [answer, setAnswer] = useState('')
   const [listening, setListening] = useState(false)
-  const [interim, setInterim] = useState('')
-  const [speechSupported, setSpeechSupported] = useState(false)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const baseTranscriptRef = useRef('')
+  const [transcribing, setTranscribing] = useState(false)
+  const [micSupported, setMicSupported] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const chunksRef = useRef<BlobPart[]>([])
 
   useEffect(() => {
-    setSpeechSupported(Boolean(getSpeechRecognition()))
+    setMicSupported(typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia) && typeof MediaRecorder !== 'undefined')
     return () => {
-      recognitionRef.current?.abort()
-      recognitionRef.current = null
+      stopListening(false)
     }
   }, [])
 
   useEffect(() => {
-    if (inputType === 'text') stopListening()
+    if (inputType === 'text') stopListening(false)
   }, [inputType])
 
-  function stopListening() {
-    recognitionRef.current?.stop()
-    recognitionRef.current = null
-    setListening(false)
-    setInterim('')
+  function releaseMic() {
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
+    mediaStreamRef.current = null
+    mediaRecorderRef.current = null
+    chunksRef.current = []
   }
 
-  function startListening() {
-    const Recognition = getSpeechRecognition()
-    if (!Recognition) {
-      setError('Voice capture is not supported in this browser. Paste a transcript instead, or use Chrome/Edge.')
+  function stopListening(finalize = true) {
+    const recorder = mediaRecorderRef.current
+    if (recorder && recorder.state !== 'inactive') {
+      if (!finalize) {
+        recorder.ondataavailable = null
+        recorder.onstop = null
+        recorder.stop()
+        releaseMic()
+        setListening(false)
+        setTranscribing(false)
+        return
+      }
+      recorder.stop()
+      return
+    }
+    releaseMic()
+    setListening(false)
+  }
+
+  async function startListening() {
+    if (!micSupported) {
+      setError('Voice capture is not supported in this browser. Paste a transcript instead.')
       return
     }
     setError('')
-    stopListening()
-    baseTranscriptRef.current = text.trim()
-    const recognition = new Recognition()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = 'en-US'
-    recognition.onresult = (event) => {
-      let finalChunk = ''
-      let interimChunk = ''
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index]
-        if (result.isFinal) finalChunk += result[0].transcript
-        else interimChunk += result[0].transcript
+    stopListening(false)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStreamRef.current = stream
+      const mimeType = pickRecorderMime()
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      chunksRef.current = []
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data)
       }
-      if (finalChunk) {
-        const prefix = baseTranscriptRef.current
-        const next = `${prefix}${prefix ? ' ' : ''}${finalChunk.trim()}`.trim()
-        baseTranscriptRef.current = next
-        setText(next)
+      recorder.onerror = () => {
+        setError('Microphone recording failed. Paste a transcript and continue.')
+        setListening(false)
+        setTranscribing(false)
+        releaseMic()
       }
-      setInterim(interimChunk.trim())
-    }
-    recognition.onerror = (event) => {
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        releaseMic()
+        setListening(false)
+        if (blob.size < 256) {
+          setError('Recording was too short. Hold the mic a moment longer, or paste a transcript.')
+          return
+        }
+        setTranscribing(true)
+        void api
+          .transcribe(blob)
+          .then((result) => {
+            setText((prev) => `${prev.trim()}${prev.trim() ? ' ' : ''}${result.transcript}`.trim())
+            setError('')
+          })
+          .catch((reason) => {
+            setError(reason instanceof Error ? reason.message : 'Transcription failed. Paste a transcript and continue.')
+          })
+          .finally(() => setTranscribing(false))
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start(250)
+      setListening(true)
+    } catch (reason) {
+      releaseMic()
       setListening(false)
-      setInterim('')
-      if (event.error === 'not-allowed') {
+      const name = reason instanceof DOMException ? reason.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
         setError('Microphone permission was blocked. Allow mic access, or paste a transcript.')
-      } else if (event.error !== 'aborted') {
-        setError(`Voice capture stopped (${event.error}). You can paste a transcript and continue.`)
+      } else {
+        setError('Could not open the microphone. Paste a transcript and continue.')
       }
     }
-    recognition.onend = () => {
-      setListening(false)
-      setInterim('')
-      recognitionRef.current = null
-    }
-    recognitionRef.current = recognition
-    recognition.start()
-    setListening(true)
   }
 
   async function withBusy(label: string, action: () => Promise<void>) {
@@ -126,7 +140,7 @@ export function PatientPage() {
   }
 
   function runScenario(scenario: Scenario) {
-    stopListening()
+    stopListening(false)
     void withBusy(scenario.id, async () => {
       const consented = await begin()
       setEncounter(await api.loadScenario(consented.id, scenario.id))
@@ -134,7 +148,7 @@ export function PatientPage() {
   }
 
   function runManual() {
-    stopListening()
+    stopListening(false)
     void withBusy('manual', async () => {
       const consented = await begin()
       setEncounter(await api.ingest(consented.id, text.trim(), inputType))
@@ -242,7 +256,7 @@ export function PatientPage() {
     )
   }
 
-  const displayValue = interim ? `${text}${text ? ' ' : ''}${interim}` : text
+  const micBusy = listening || transcribing
 
   return (
     <div className="page-wrap">
@@ -276,26 +290,31 @@ export function PatientPage() {
           {inputType === 'voice-transcript' && (
             <div className={`voice-panel ${listening ? 'listening' : ''}`}>
               <div>
-                <strong>{listening ? 'Listening…' : 'Capture a spoken report'}</strong>
+                <strong>
+                  {transcribing ? 'Transcribing…' : listening ? 'Recording…' : 'Capture a spoken report'}
+                </strong>
                 <p>
-                  {speechSupported
-                    ? 'Uses your browser microphone, turns speech into text, then sends it as a voice transcript (not a diagnosis).'
-                    : 'This browser cannot capture speech. Paste a spoken report transcript below instead.'}
+                  {micSupported
+                    ? 'Records on your device, then turns speech into text on the server (not a diagnosis). Paste still works anytime.'
+                    : 'This browser cannot record audio. Paste a spoken report transcript below instead.'}
                 </p>
               </div>
               <div className="voice-actions">
-                {speechSupported && (
+                {micSupported && !transcribing && (
                   listening ? (
-                    <button type="button" className="button secondary" onClick={stopListening}>
-                      <Square size={16} />Stop
+                    <button type="button" className="button secondary" onClick={() => stopListening(true)}>
+                      <Square size={16} />Stop &amp; transcribe
                     </button>
                   ) : (
-                    <button type="button" className="button secondary" onClick={startListening}>
+                    <button type="button" className="button secondary" onClick={() => void startListening()}>
                       <Mic size={16} />Start mic
                     </button>
                   )
                 )}
-                {!speechSupported && (
+                {transcribing && (
+                  <span className="voice-badge"><LoaderCircle size={14} className="spin" />Working</span>
+                )}
+                {!micSupported && (
                   <span className="voice-badge"><MicOff size={14} />Paste mode</span>
                 )}
               </div>
@@ -305,15 +324,15 @@ export function PatientPage() {
           <label>
             {inputType === 'voice-transcript' ? 'Voice transcript' : 'What are you experiencing?'}
             <textarea
-              value={displayValue}
+              value={text}
               onChange={(event) => {
-                if (listening) return
+                if (micBusy) return
                 setText(event.target.value)
               }}
-              readOnly={listening}
+              readOnly={micBusy}
               placeholder={
                 inputType === 'voice-transcript'
-                  ? 'Press Start mic, or paste a transcript of what was said…'
+                  ? 'Press Start mic, then Stop & transcribe — or paste a transcript…'
                   : 'Describe your symptoms in your own words…'
               }
             />

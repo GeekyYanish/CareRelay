@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket
+from fastapi import Body, Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -41,6 +41,7 @@ from .schemas import (
 )
 from .services import EncounterService
 from .store import Store
+from .transcribe import transcribe_with_gemini
 
 
 settings = get_settings()
@@ -105,11 +106,31 @@ def ready():
     database = database_ready()
     orchestration = encounters.orchestrator.status()
     orchestrator_ready = bool(orchestration.get("ready"))
+    retrieval_status: dict[str, Any] = {
+        "provider": settings.retrieval_provider,
+        "url": settings.qdrant_url if settings.retrieval_provider == "qdrant" else None,
+        "api_key_configured": bool(settings.qdrant_api_key),
+        "timeout_seconds": settings.qdrant_timeout_seconds,
+        "fallback": "in-memory-hybrid",
+        "live": False,
+        "last_mode": getattr(encounters.retrieval, "last_mode", None),
+    }
+    if settings.retrieval_provider == "qdrant":
+        try:
+            citations, quality = encounters.retrieval.retrieve(
+                "mild nasal congestion improving",
+                tenant_id=store.tenant_id,
+            )
+            retrieval_status["live"] = getattr(encounters.retrieval, "last_mode", "") == "qdrant"
+            retrieval_status["probe_quality"] = quality
+            retrieval_status["probe_citations"] = len(citations)
+        except Exception as exc:
+            retrieval_status["error"] = type(exc).__name__
     return {
         "ready": database and (orchestrator_ready or not settings.require_live_orchestration),
         "database": database,
         "event_transport": get_event_transport().status(),
-        "retrieval": {"configured": settings.retrieval_provider, "fallback": "in-memory-hybrid"},
+        "retrieval": retrieval_status,
         "orchestration": orchestration,
     }
 
@@ -143,6 +164,31 @@ def signup(payload: SignupRequest):
 @app.get("/api/v1/auth/me", response_model=User)
 def me(user: User = Depends(current_user)):
     return user
+
+
+@app.post("/api/v1/transcribe")
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    user: User = Depends(require_roles(Role.PATIENT, Role.CLINICIAN)),
+):
+    """Turn a short mic recording into plain transcript text (no diagnosis)."""
+    del user  # auth gate only
+    if not settings.gemini_api_key:
+        raise HTTPException(
+            503,
+            "Voice transcription is unavailable (GEMINI_API_KEY not configured). Paste a transcript instead.",
+        )
+    audio = await file.read()
+    if not audio:
+        raise HTTPException(400, "Empty audio upload")
+    mime = file.content_type or "audio/webm"
+    try:
+        transcript = await transcribe_with_gemini(settings, audio, mime)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, "Transcription failed. Paste a transcript and continue.") from exc
+    return {"transcript": transcript, "provider": "gemini"}
 
 
 @app.post("/api/v1/auth/ws-ticket")

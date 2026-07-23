@@ -46,6 +46,33 @@ export const api = {
   consent: (id: string) => request<Encounter>(`/encounters/${id}/consent`, { method: 'POST', body: JSON.stringify({ accepted: true, version: 'care-relay-v1' }) }),
   loadScenario: (id: string, scenario_id: string) => request<Encounter>(`/encounters/${id}/demo-scenario`, { method: 'POST', body: JSON.stringify({ scenario_id }) }),
   ingest: (id: string, text: string, input_type: 'text' | 'voice-transcript') => request<Encounter>(`/encounters/${id}/ingest`, { method: 'POST', body: JSON.stringify({ text, input_type }) }),
+  transcribe: async (blob: Blob) => {
+    const token = localStorage.getItem('carerelay-token')
+    const form = new FormData()
+    const extension = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm'
+    form.append('file', blob, `voice.${extension}`)
+    let response: Response
+    try {
+      response = await fetch(`${base}/transcribe`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      })
+    } catch {
+      throw new ApiError('Network error — check that the API is awake and reachable', 0)
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({} as Record<string, unknown>))
+      const err = body.error as { message?: string } | undefined
+      const detail = body.detail
+      const message =
+        err?.message ||
+        (typeof detail === 'string' ? detail : undefined) ||
+        `Transcription failed (${response.status})`
+      throw new ApiError(message, response.status)
+    }
+    return response.json() as Promise<{ transcript: string; provider: string }>
+  },
   answer: (id: string, question_id: string, answer: string) => request<Encounter>(`/encounters/${id}/answers`, { method: 'POST', body: JSON.stringify({ question_id, answer }) }),
   teachBack: (id: string, answer: string) => request<Encounter>(`/encounters/${id}/teach-back`, { method: 'POST', body: JSON.stringify({ answer }) }),
   patchSoap: (id: string, sections: Record<string,string[]>) => request<Encounter>(`/encounters/${id}/soap`, { method: 'PATCH', body: JSON.stringify({ sections }) }),

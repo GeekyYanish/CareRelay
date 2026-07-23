@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./carerelay.db"
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
+    qdrant_timeout_seconds: float = 8.0
     jwt_secret: str = ""
     a2a_shared_token: str = ""
     gemini_api_key: str = ""

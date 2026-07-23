@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import math
 import re
 from abc import ABC, abstractmethod
@@ -23,6 +24,8 @@ from ..schemas import (
     TriageProposal,
     Urgency,
 )
+
+logger = logging.getLogger(__name__)
 
 
 CORPUS = [
@@ -202,10 +205,16 @@ class QdrantRetrievalProvider(RetrievalProvider):
     name = "qdrant-hybrid"
 
     def __init__(self, settings: Settings):
-        self.client = QdrantClient(
-            url=settings.qdrant_url, timeout=0.35, check_compatibility=False
-        )
+        kwargs: dict[str, Any] = {
+            "url": settings.qdrant_url,
+            "timeout": settings.qdrant_timeout_seconds,
+            "check_compatibility": False,
+        }
+        if settings.qdrant_api_key:
+            kwargs["api_key"] = settings.qdrant_api_key
+        self.client = QdrantClient(**kwargs)
         self.fallback = RetrievalProvider()
+        self.last_mode = "qdrant"
 
     @staticmethod
     def _collection(tenant_id: str, kind: str) -> str:
@@ -288,6 +297,8 @@ class QdrantRetrievalProvider(RetrievalProvider):
                 current = merged.get(source_id, (0.0, payload))
                 merged[source_id] = (current[0] + max(0.0, float(point.score)), payload)
             ranked = sorted(merged.values(), key=lambda item: item[0], reverse=True)[:2]
+            if not ranked:
+                raise RuntimeError("Qdrant returned no guideline matches")
             quality = forced_quality if forced_quality is not None else min(0.97, ranked[0][0] / 2)
             citations = [
                 EvidenceCitation.model_validate(payload).model_copy(
@@ -296,8 +307,11 @@ class QdrantRetrievalProvider(RetrievalProvider):
                 for _, payload in ranked
             ]
             self._remember(tenant_id, query)
+            self.last_mode = "qdrant"
             return citations, round(quality, 2)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Qdrant retrieval failed closed to in-memory fallback: %s", type(exc).__name__)
+            self.last_mode = "in-memory-fallback"
             return self.fallback.retrieve(text, forced_quality, tenant_id)
 
 
