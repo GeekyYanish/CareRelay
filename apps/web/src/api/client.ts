@@ -6,13 +6,24 @@ export class ApiError extends Error { constructor(message: string, public status
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('carerelay-token')
-  const response = await fetch(`${base}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${base}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+    })
+  } catch {
+    throw new ApiError('Network error — check that the API is awake and reachable', 0)
+  }
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new ApiError(body.error?.message || body.detail || 'Request failed', response.status)
+    const body = await response.json().catch(() => ({} as Record<string, unknown>))
+    const err = body.error as { message?: string } | undefined
+    const detail = body.detail
+    const message =
+      err?.message ||
+      (typeof detail === 'string' ? detail : undefined) ||
+      `Request failed (${response.status})`
+    throw new ApiError(message, response.status)
   }
   return response.json()
 }
