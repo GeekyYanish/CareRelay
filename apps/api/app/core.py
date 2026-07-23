@@ -6,8 +6,17 @@ import re
 import sys
 from functools import lru_cache
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_database_url(url: str) -> str:
+    """Map provider URLs to SQLAlchemy + psycopg v3 (Render/Neon default to bare postgresql://)."""
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgres://")
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgresql://")
+    return url
 
 
 class Settings(BaseSettings):
@@ -43,6 +52,13 @@ class Settings(BaseSettings):
     retrieval_threshold: float = 0.70
     low_risk_uncertainty_max: float = 0.25
     provider_timeout_seconds: float = 2.0
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def use_psycopg_driver(cls, value: object) -> object:
+        if isinstance(value, str):
+            return normalize_database_url(value)
+        return value
 
     @model_validator(mode="after")
     def reject_unsafe_production_configuration(self) -> "Settings":
