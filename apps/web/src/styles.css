@@ -125,6 +125,13 @@ textarea { min-height:110px; resize:vertical; line-height:1.5; }
 .segmented button { min-height:36px; display:flex; align-items:center; gap:6px; border:0; border-radius:3px; padding:7px 9px; color:var(--muted); background:transparent; font-size:.75rem; }
 .segmented button.active { background:white; color:var(--green); box-shadow:0 2px 7px rgba(0,0,0,.08); }
 .helper { margin:0; color:var(--muted); font-size:.78rem; }
+.voice-panel { display:flex; justify-content:space-between; gap:16px; align-items:center; padding:14px 16px; border:1px solid var(--line); border-radius:6px; background:#f3f7f5; }
+.voice-panel.listening { border-color:#6b978c; background:#e7f2ed; }
+.voice-panel strong { display:block; margin-bottom:4px; }
+.voice-panel p { margin:0; color:var(--muted); font-size:.8rem; max-width:38ch; }
+.voice-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+.voice-badge { display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border-radius:999px; background:#efe8df; color:var(--ink); font-size:.75rem; font-weight:600; }
+
 .intake-aside { position:relative; overflow:hidden; padding:28px; background:linear-gradient(145deg,#102b32,#1c4c51); color:#e8f0ed; }
 .intake-aside::after { content:''; position:absolute; width:210px; height:210px; right:-78px; bottom:-86px; border:1px solid rgba(196,235,223,.25); border-radius:50%; box-shadow:0 0 0 32px rgba(196,235,223,.05),0 0 0 64px rgba(196,235,223,.035); }
 .intake-aside .eyebrow { color:#9dd5c7; }
