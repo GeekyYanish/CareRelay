@@ -24,8 +24,7 @@ export function AppShell({ children }: PropsWithChildren) {
         <div className="user-block"><span><strong>{user.name}</strong><small>{user.role}</small></span><button className="icon-button" aria-label="Sign out" onClick={() => { logout(); navigate('/login') }}><LogOut size={18} /></button></div>
       </header>
       <main id="main-content">{children}</main>
-      <footer><Disclaimer compact /><span className="mono">DEMO_MODE · v0.1</span></footer>
+      <footer><Disclaimer compact /><span className="mono">CareRelay · secure care coordination</span></footer>
     </div>
   )
 }
-

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from .agents.providers import MockAgentProvider, get_retrieval_provider
+from .agents.providers import DeterministicBaselineProvider, get_retrieval_provider
 from .core import get_settings
 from .event_bus import get_event_transport
 from .orchestration import OrchestrationError, make_orchestrator, opaque_run_ref
@@ -168,15 +168,6 @@ class EncounterService:
         self.retrieval = get_retrieval_provider()
         self.orchestrator = make_orchestrator()
 
-    async def load_scenario(self, encounter: EncounterView, scenario_id: str, user: User) -> EncounterView:
-        scenario = self.store.scenarios[scenario_id]
-        encounter.scenario_id = scenario_id
-        encounter.transcript = [{"id": "TRANSCRIPT-1", "speaker": "patient", "input_type": "demo", "text": scenario["transcript"], "created_at": datetime.now(timezone.utc).isoformat()}]
-        encounter.status = "processing"
-        event(encounter, "intake.received", {"mode": "demo-scenario", "scenario": scenario_id})
-        self.store.save_encounter(encounter)
-        return await self.finalize(encounter, scenario, user)
-
     def ingest(self, encounter: EncounterView, text: str, input_type: str, user: User) -> EncounterView:
         encounter.transcript.append({"id": str(uuid4()), "speaker": "patient", "input_type": input_type, "text": text, "created_at": datetime.now(timezone.utc).isoformat()})
         event(encounter, "intake.received", {"mode": input_type})
@@ -189,6 +180,20 @@ class EncounterService:
             encounter.status = "interviewing"
         self.store.audit(user.tenant_id, encounter.id, user.id, "intake.ingested", {"masked_text": mask_phi(text), "input_type": input_type})
         return self.store.save_encounter(encounter)
+
+    def case_context(self, encounter: EncounterView) -> dict[str, Any]:
+        """Create a conservative, encounter-derived context for non-live fallbacks."""
+        known = inferred_facts(encounter)
+        missing = [fact for fact, _ in QUESTION_BANK if fact not in known]
+        text = " ".join(item.get("text", "") for item in encounter.transcript).lower()
+        high_concern = any(term in text for term in ("severe", "worsening", "unable", "sudden"))
+        return {
+            "triage": "Same-Day" if high_concern else "Routine",
+            "critic": "Same-Day" if high_concern else "Routine",
+            "retrieval_quality": None,
+            "uncertainty": 0.38 if missing else 0.18,
+            "missing": missing,
+        }
 
     def add_next_question(self, encounter: EncounterView) -> bool:
         turn = len(encounter.questions)
@@ -223,19 +228,14 @@ class EncounterService:
         if self.rules.scan(text) or len(encounter.answers) >= 3:
             encounter.status = "processing"
             self.store.save_encounter(encounter)
-            scenario = self.store.scenarios.get(encounter.scenario_id or "", {"triage":"Routine", "critic":"Routine", "retrieval_quality":0.78, "uncertainty":0.22})
-            return await self.finalize(encounter, scenario, user)
+            return await self.finalize(encounter, self.case_context(encounter), user)
         if self.add_next_question(encounter):
             return self.store.save_encounter(encounter)
         encounter.status = "processing"
         self.store.save_encounter(encounter)
-        scenario = self.store.scenarios.get(
-            encounter.scenario_id or "",
-            {"triage": "Routine", "critic": "Routine", "retrieval_quality": 0.78, "uncertainty": 0.22},
-        )
-        return await self.finalize(encounter, scenario, user)
+        return await self.finalize(encounter, self.case_context(encounter), user)
 
-    async def finalize(self, encounter: EncounterView, scenario: dict[str, Any], user: User) -> EncounterView:
+    async def finalize(self, encounter: EncounterView, context: dict[str, Any], user: User) -> EncounterView:
         settings = get_settings()
         unknown_facts = [
             item["fact"]
@@ -246,10 +246,10 @@ class EncounterService:
             )
         ]
         if unknown_facts:
-            scenario = {
-                **scenario,
-                "missing": sorted(set(scenario.get("missing", [])) | set(unknown_facts)),
-                "uncertainty": max(0.5, float(scenario.get("uncertainty", 0.5))),
+            context = {
+                **context,
+                "missing": sorted(set(context.get("missing", [])) | set(unknown_facts)),
+                "uncertainty": max(0.5, float(context.get("uncertainty", 0.5))),
             }
         text = " ".join([item["text"] for item in encounter.transcript] + [item["answer"] for item in encounter.answers])
         red_flags = self.rules.scan(text)
@@ -259,7 +259,7 @@ class EncounterService:
             {"stage": "pre-agent", "matches": len(red_flags), "rule_version": self.rules.version},
         )
         citations, quality = self.retrieval.retrieve(
-            text, scenario.get("retrieval_quality"), encounter.tenant_id
+            text, context.get("retrieval_quality"), encounter.tenant_id
         )
         event(encounter, "retrieval.completed", {"quality": quality, "source_ids": [item.source_id for item in citations]})
         provider_failed = False
@@ -273,7 +273,7 @@ class EncounterService:
                 urgency=Urgency.EMERGENCY,
                 confidence=1.0,
                 uncertainty=0.0,
-                rationale_summary="An unvalidated demonstration red-flag rule requires immediate emergency guidance.",
+                rationale_summary="A deterministic safety rule requires immediate emergency guidance.",
                 citations=citations,
             )
             critic = SafetyCritique(
@@ -283,7 +283,7 @@ class EncounterService:
                 confidence=1.0,
                 summary="Generative agents were bypassed because a deterministic Emergency rule matched.",
             )
-            soap = await MockAgentProvider().document(text, triage, citations)
+            soap = await DeterministicBaselineProvider().document(text, triage, citations)
             encounter.orchestration = OrchestrationRun(
                 provider="deterministic-red-flag",
                 status="bypassed",
@@ -301,7 +301,7 @@ class EncounterService:
             try:
                 outcome = await self.orchestrator.run(
                     mask_phi(text),
-                    scenario,
+                    context,
                     citations,
                     opaque_run_ref(encounter.tenant_id, encounter.id),
                 )
@@ -344,17 +344,17 @@ class EncounterService:
                         "error_code": error_code,
                     },
                 )
-                fallback = MockAgentProvider()
-                safe_scenario = {
-                    **scenario,
+                fallback = DeterministicBaselineProvider()
+                safe_context = {
+                    **context,
                     "triage": "Routine",
                     "critic": "Routine",
-                    "uncertainty": max(0.5, scenario.get("uncertainty", 0.5)),
+                    "uncertainty": max(0.5, context.get("uncertainty", 0.5)),
                     "provider_timeout": False,
                 }
-                triage = await fallback.triage(mask_phi(text), safe_scenario, citations)
+                triage = await fallback.triage(mask_phi(text), safe_context, citations)
                 critic, soap = await asyncio.gather(
-                    fallback.critique(triage, mask_phi(text), safe_scenario),
+                    fallback.critique(triage, mask_phi(text), safe_context),
                     fallback.document(text, triage, citations),
                 )
         post_critic_flags = self.rules.scan(text)

@@ -12,6 +12,13 @@ from app.schemas import EvidenceCitation
 
 def settings(**updates):
     values = {
+        "database_url": "postgresql+psycopg://service@postgres/carerelay",
+        "jwt_secret": "j" * 48,
+        "a2a_shared_token": "a" * 48,
+        "mcp_provider": "google-cloud",
+        "cors_origins": "https://care-relay.example.com",
+        "public_api_base_url": "https://api.care-relay.example.com",
+        "require_live_orchestration": True,
         "orchestrator_provider": "lyzr",
         "lyzr_api_key": "test-secret",
         "lyzr_workflow_id": "wf_care_relay",
@@ -25,7 +32,7 @@ def settings(**updates):
 
 def citation():
     return EvidenceCitation(
-        source_id="DEMO-GUIDE-003",
+        source_id="CARE-GUIDE-003",
         title="Approved guidance",
         version="1",
         excerpt="Use explicit safety-net instructions.",
@@ -73,7 +80,7 @@ def contract_result():
                         "confidence": 0.9,
                         "provenance": [
                             {
-                                "source_id": "DEMO-GUIDE-003",
+                                "source_id": "CARE-GUIDE-003",
                                 "source_type": "retrieval",
                                 "label": "Approved guidance",
                             }
@@ -122,7 +129,7 @@ async def test_superflow_executes_polls_and_validates_contract():
     assert outcome.run.execution_id == "exec_123"
     assert outcome.run.status == "completed"
     assert outcome.triage.provider == "lyzr-superflow"
-    assert outcome.triage.citations[0].source_id == "DEMO-GUIDE-003"
+    assert outcome.triage.citations[0].source_id == "CARE-GUIDE-003"
     assert outcome.soap.sections["subjective"][0].provenance[0].quote == "[NAME] has a mild concern"
 
 
@@ -174,32 +181,28 @@ async def test_verify_reads_configured_workflow_without_exposing_key():
     assert "test-secret" not in json.dumps(result)
 
 
-@pytest.mark.asyncio
-async def test_superflow_requires_both_credentials():
-    orchestrator = LyzrSuperFlowOrchestrator(settings(lyzr_api_key=""))
-    with pytest.raises(OrchestrationError) as error:
-        await orchestrator.run("masked", {}, [citation()], "opaque-ref")
-    assert error.value.code == "LYZR_NOT_CONFIGURED"
+def test_settings_require_live_orchestration_credentials():
+    with pytest.raises(ValueError, match="LYZR_API_KEY and LYZR_WORKFLOW_ID are required"):
+        settings(lyzr_api_key="")
 
 
-def test_production_settings_reject_blank_secrets_and_demo_storage():
+def test_production_settings_reject_blank_secrets():
     with pytest.raises(ValueError, match="Unsafe production configuration"):
-        Settings(_env_file=None, demo_mode=False)
+        Settings(_env_file=None, jwt_secret="", a2a_shared_token="")
 
 
 def test_production_settings_accept_hosted_live_configuration():
     configured = Settings(
         _env_file=None,
-        demo_mode=False,
-        seed_demo_data=False,
         database_url="postgresql+psycopg://service@postgres/carerelay",
         jwt_secret="j" * 48,
         a2a_shared_token="a" * 48,
         orchestrator_provider="lyzr",
+        mcp_provider="google-cloud",
         lyzr_api_key="secret",
         lyzr_workflow_id="wf_live",
         require_live_orchestration=True,
         cors_origins="https://care-relay.example.com",
         public_api_base_url="https://api.care-relay.example.com",
     )
-    assert configured.demo_mode is False
+    assert configured.orchestrator_provider == "lyzr"

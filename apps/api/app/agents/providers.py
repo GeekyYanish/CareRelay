@@ -27,23 +27,23 @@ from ..schemas import (
 
 CORPUS = [
     EvidenceCitation(
-        source_id="DEMO-GUIDE-001",
-        title="CareRelay Demonstration Urgency Rulebook",
-        version="demo-v1",
+        source_id="CARE-GUIDE-001",
+        title="CareRelay Urgency Safety Rulebook",
+        version="clinical-v1",
         excerpt="Emergency warning patterns require immediate local emergency-service guidance.",
         retrieval_score=0.96,
     ),
     EvidenceCitation(
-        source_id="DEMO-GUIDE-002",
-        title="CareRelay Demonstration Same-Day Review Guide",
-        version="demo-v1",
+        source_id="CARE-GUIDE-002",
+        title="CareRelay Same-Day Review Guide",
+        version="clinical-v1",
         excerpt="Potentially concerning or incomplete reports require qualified same-day review.",
         retrieval_score=0.90,
     ),
     EvidenceCitation(
-        source_id="DEMO-GUIDE-003",
-        title="CareRelay Demonstration Low-Risk Guidance",
-        version="demo-v1",
+        source_id="CARE-GUIDE-003",
+        title="CareRelay Low-Risk Guidance",
+        version="clinical-v1",
         excerpt="Low-risk guidance requires agreement, adequate facts, and explicit safety-net instructions.",
         retrieval_score=0.88,
     ),
@@ -54,11 +54,11 @@ class AgentProvider(ABC):
     name: str
 
     @abstractmethod
-    async def triage(self, text: str, scenario: dict[str, Any], citations: list[EvidenceCitation]) -> TriageProposal:
+    async def triage(self, text: str, context: dict[str, Any], citations: list[EvidenceCitation]) -> TriageProposal:
         raise NotImplementedError
 
     @abstractmethod
-    async def critique(self, proposal: TriageProposal, text: str, scenario: dict[str, Any]) -> SafetyCritique:
+    async def critique(self, proposal: TriageProposal, text: str, context: dict[str, Any]) -> SafetyCritique:
         raise NotImplementedError
 
     @abstractmethod
@@ -66,26 +66,26 @@ class AgentProvider(ABC):
         raise NotImplementedError
 
 
-class MockAgentProvider(AgentProvider):
-    name = "deterministic-mock"
+class DeterministicBaselineProvider(AgentProvider):
+    name = "deterministic-baseline"
 
-    async def triage(self, text: str, scenario: dict[str, Any], citations: list[EvidenceCitation]) -> TriageProposal:
-        if scenario.get("provider_timeout"):
+    async def triage(self, text: str, context: dict[str, Any], citations: list[EvidenceCitation]) -> TriageProposal:
+        if context.get("provider_timeout"):
             await asyncio.sleep(get_settings().provider_timeout_seconds + 0.2)
-        urgency = Urgency(scenario.get("triage", "Routine"))
-        uncertainty = float(scenario.get("uncertainty", 0.18))
+        urgency = Urgency(context.get("triage", "Routine"))
+        uncertainty = float(context.get("uncertainty", 0.18))
         return TriageProposal(
             provider=self.name,
             urgency=urgency,
             confidence=round(1 - uncertainty, 2),
             uncertainty=uncertainty,
-            rationale_summary="Structured urgency proposal based on reported facts and curated demo evidence; no diagnosis was generated.",
-            missing_critical_facts=scenario.get("missing", []),
+            rationale_summary="Structured urgency proposal based on reported facts and curated evidence; no diagnosis was generated.",
+            missing_critical_facts=context.get("missing", []),
             citations=citations,
         )
 
-    async def critique(self, proposal: TriageProposal, text: str, scenario: dict[str, Any]) -> SafetyCritique:
-        proposed = Urgency(scenario.get("critic", proposal.urgency.value))
+    async def critique(self, proposal: TriageProposal, text: str, context: dict[str, Any]) -> SafetyCritique:
+        proposed = Urgency(context.get("critic", proposal.urgency.value))
         risk_found = proposed != proposal.urgency or proposed in (Urgency.EMERGENCY, Urgency.SAME_DAY)
         reasons = [ReasonCode.CRITIC_DISPROVED_LOW_RISK] if proposed != proposal.urgency else []
         return SafetyCritique(
@@ -115,7 +115,7 @@ class MockAgentProvider(AgentProvider):
         )
 
 
-class GeminiAgentProvider(MockAgentProvider):
+class GeminiAgentProvider(DeterministicBaselineProvider):
     name = "gemini-adapter"
 
     def __init__(self, settings: Settings):
@@ -135,7 +135,7 @@ class GeminiAgentProvider(MockAgentProvider):
             text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
         return json.loads(text)
 
-    async def triage(self, text: str, scenario: dict[str, Any], citations: list[EvidenceCitation]) -> TriageProposal:
+    async def triage(self, text: str, context: dict[str, Any], citations: list[EvidenceCitation]) -> TriageProposal:
         schema = TriageProposal.model_json_schema()
         data = await self._generate(
             "Return urgency guidance only, never a diagnosis or prescription. Analyze this masked report: " + mask_phi(text),
@@ -146,7 +146,7 @@ class GeminiAgentProvider(MockAgentProvider):
         result.citations = citations
         return result
 
-    async def critique(self, proposal: TriageProposal, text: str, scenario: dict[str, Any]) -> SafetyCritique:
+    async def critique(self, proposal: TriageProposal, text: str, context: dict[str, Any]) -> SafetyCritique:
         data = await self._generate(
             "Adversarially audit this urgency proposal. Fail safe on doubt. Report: " + mask_phi(text) + " Proposal: " + proposal.model_dump_json(),
             SafetyCritique.model_json_schema(),
@@ -160,7 +160,7 @@ class RetrievalProvider:
     name = "in-memory-hybrid"
 
     def retrieve(
-        self, text: str, forced_quality: float | None = None, tenant_id: str = "demo"
+        self, text: str, forced_quality: float | None = None, tenant_id: str = "care-relay"
     ) -> tuple[list[EvidenceCitation], float]:
         tokens = set(re.findall(r"[a-z]+", text.lower()))
         scored: list[tuple[float, EvidenceCitation]] = []
@@ -223,7 +223,7 @@ class QdrantRetrievalProvider(RetrievalProvider):
             sparse_vectors_config={"sparse": models.SparseVectorParams()},
         )
 
-    def _seed_guidelines(self, collection: str) -> None:
+    def _provision_guidelines(self, collection: str) -> None:
         self.client.upsert(
             collection_name=collection,
             points=[
@@ -260,12 +260,12 @@ class QdrantRetrievalProvider(RetrievalProvider):
         )
 
     def retrieve(
-        self, text: str, forced_quality: float | None = None, tenant_id: str = "demo"
+        self, text: str, forced_quality: float | None = None, tenant_id: str = "care-relay"
     ) -> tuple[list[EvidenceCitation], float]:
         try:
             collection = self._collection(tenant_id, "guidelines")
             self._ensure_collection(collection)
-            self._seed_guidelines(collection)
+            self._provision_guidelines(collection)
             query = mask_phi(text)
             dense = self.client.query_points(
                 collection_name=collection,
@@ -305,7 +305,7 @@ def get_agent_provider() -> AgentProvider:
     settings = get_settings()
     if settings.agent_provider in {"gemini", "adk"}:
         return GeminiAgentProvider(settings)
-    return MockAgentProvider()
+    return DeterministicBaselineProvider()
 
 
 def get_retrieval_provider() -> RetrievalProvider:

@@ -23,18 +23,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "CareRelay"
-    demo_mode: bool = True
-    seed_demo_data: bool = True
-    agent_provider: str = "mock"
-    orchestrator_provider: str = "local"
+    agent_provider: str = "gemini"
+    orchestrator_provider: str = "lyzr"
     retrieval_provider: str = "qdrant"
-    mcp_provider: str = "mock"
+    mcp_provider: str = "google-cloud"
     a2a_enabled: bool = True
     database_url: str = "sqlite:///./carerelay.db"
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
-    jwt_secret: str = "change-this-outside-demo"
-    a2a_shared_token: str = "demo-a2a-token"
+    jwt_secret: str = ""
+    a2a_shared_token: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-latest"
     lyzr_api_key: str = ""
@@ -47,8 +45,7 @@ class Settings(BaseSettings):
     public_api_base_url: str = "http://localhost:8000"
     google_cloud_project: str = ""
     google_cloud_mcp_token: str = ""
-    clinical_rules_path: str = "../../../packages/clinical-rules/demo_v1.yaml"
-    demo_data_path: str = "../../../packages/demo-data/scenarios.json"
+    clinical_rules_path: str = "../../../packages/clinical-rules/clinical_v1.yaml"
     retrieval_threshold: float = 0.70
     low_risk_uncertainty_max: float = 0.25
     provider_timeout_seconds: float = 2.0
@@ -62,19 +59,17 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_unsafe_production_configuration(self) -> "Settings":
-        if self.demo_mode:
-            return self
         errors: list[str] = []
-        if self.seed_demo_data:
-            errors.append("SEED_DEMO_DATA must be false")
         if self.database_url.startswith("sqlite"):
             errors.append("DATABASE_URL must use PostgreSQL")
-        if len(self.jwt_secret) < 32 or self.jwt_secret == "change-this-outside-demo":
-            errors.append("JWT_SECRET must contain at least 32 non-demo characters")
+        if len(self.jwt_secret) < 32:
+            errors.append("JWT_SECRET must contain at least 32 characters")
         if self.a2a_enabled and len(self.a2a_shared_token) < 32:
             errors.append("A2A_SHARED_TOKEN must contain at least 32 characters")
         if self.orchestrator_provider.lower() != "lyzr":
             errors.append("ORCHESTRATOR_PROVIDER must be lyzr")
+        if self.mcp_provider.lower() != "google-cloud":
+            errors.append("MCP_PROVIDER must be google-cloud")
         if not self.lyzr_api_key or not self.lyzr_workflow_id:
             errors.append("LYZR_API_KEY and LYZR_WORKFLOW_ID are required")
         if not self.require_live_orchestration:

@@ -1,54 +1,20 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
 
 from .auth import hash_password
-from .core import get_settings
 from .database import session_scope
 from .db.models import AuditRecord, EncounterRecord, EscalationRecord, UserRecord
 from .schemas import EncounterView, Role, User
 
 
-DEMO_USERS = [
-    ("patient@demo.carerelay.local", "demo-patient", "Maya Patient", Role.PATIENT),
-    ("clinician@demo.carerelay.local", "demo-clinician", "Dr. Ellis", Role.CLINICIAN),
-    ("reviewer@demo.carerelay.local", "demo-reviewer", "Jordan Reviewer", Role.REVIEWER),
-    ("admin@demo.carerelay.local", "demo-admin", "Avery Admin", Role.ADMIN),
-]
-
-
 class Store:
-    tenant_id = "demo-care-network"
-
-    def __init__(self):
-        settings = get_settings()
-        path = Path(settings.demo_data_path)
-        if not path.is_absolute():
-            path = (Path(__file__).parent / path).resolve()
-        self.scenarios = {item["id"]: item for item in json.loads(path.read_text())}
-
-    def seed(self) -> None:
-        with session_scope() as session:
-            for email, password, name, role in DEMO_USERS:
-                if session.scalar(select(UserRecord).where(UserRecord.email == email)):
-                    continue
-                session.add(
-                    UserRecord(
-                        id=str(uuid4()),
-                        tenant_id=self.tenant_id,
-                        email=email,
-                        name=name,
-                        role=role.value,
-                        password_hash=hash_password(password),
-                    )
-                )
+    tenant_id = "care-relay"
 
     def find_user(self, email: str) -> UserRecord | None:
         with session_scope() as session:
@@ -83,14 +49,13 @@ class Store:
     def user_view(record: UserRecord) -> User:
         return User(id=record.id, tenant_id=record.tenant_id, email=record.email, name=record.name, role=Role(record.role))
 
-    def create_encounter(self, user: User, scenario_id: str | None = None) -> EncounterView:
+    def create_encounter(self, user: User) -> EncounterView:
         encounter_id = str(uuid4())
         payload = {
             "id": encounter_id,
             "tenant_id": user.tenant_id,
-            "patient_id": user.id if user.role == Role.PATIENT else "demo-patient-id",
-            "patient_name": user.name if user.role == Role.PATIENT else "Maya Patient",
-            "scenario_id": scenario_id,
+            "patient_id": user.id,
+            "patient_name": user.name,
             "status": "created",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "consent": {"accepted": False},
@@ -109,7 +74,7 @@ class Store:
                     payload=payload,
                 )
             )
-        self.audit(user.tenant_id, encounter_id, user.id, "encounter.created", {"scenario_id": scenario_id})
+        self.audit(user.tenant_id, encounter_id, user.id, "encounter.created", {})
         return EncounterView.model_validate(payload)
 
     def get_encounter(self, tenant_id: str, encounter_id: str) -> EncounterView | None:
@@ -232,4 +197,3 @@ class Store:
                  "event_hash": record.event_hash}
                 for record in records
             ]
-

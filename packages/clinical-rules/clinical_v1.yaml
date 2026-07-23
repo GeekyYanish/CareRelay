@@ -1,5 +1,5 @@
-version: demo_v1
-disclaimer: Synthetic hackathon rules; not validated clinical policy.
+version: clinical_v1
+disclaimer: This ruleset provides urgency guidance only and must be governed and clinically validated before use in care decisions.
 rules:
   - id: RF-CHEST-BREATH
     severity: Emergency
@@ -17,4 +17,3 @@ rules:
     severity: Same-Day
     patterns: ["high fever worsening", "unable to keep fluids down"]
     action: Contact a qualified clinician today.
-

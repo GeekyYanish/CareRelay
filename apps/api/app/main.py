@@ -15,7 +15,7 @@ from .auth import create_token, current_user, require_roles, verify_password
 from .core import configure_logging, get_settings
 from .database import database_ready, initialize_database
 from .event_bus import get_event_transport
-from .mcp_ops import OpsMcpAdapter, mock_mcp_response
+from .mcp_ops import OpsMcpAdapter
 from .orchestration import LyzrSuperFlowOrchestrator, OrchestrationError
 from .rules import RedFlagEngine
 from .schemas import (
@@ -51,8 +51,6 @@ ws_tickets: dict[str, dict[str, Any]] = {}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database()
-    if settings.seed_demo_data:
-        store.seed()
     yield
 
 
@@ -90,7 +88,7 @@ def encounter_for(user: User, encounter_id: str) -> EncounterView:
 
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "service": "carerelay-api", "demo_mode": settings.demo_mode}
+    return {"status": "ok", "service": "carerelay-api"}
 
 
 @app.get("/api/v1/ready")
@@ -149,16 +147,9 @@ def create_ws_ticket(user: User = Depends(current_user)):
     return {"ticket": ticket, "expires_in": 60}
 
 
-@app.get("/api/v1/demo/scenarios")
-def scenarios(user: User = Depends(current_user)):
-    if not settings.demo_mode:
-        raise HTTPException(404, "Demo scenarios are disabled")
-    return [{key: value for key, value in scenario.items() if key not in {"transcript", "critic", "triage"}} for scenario in store.scenarios.values()]
-
-
 @app.post("/api/v1/encounters", response_model=EncounterView)
 async def create_encounter(payload: EncounterCreate, user: User = Depends(require_roles(Role.PATIENT, Role.CLINICIAN))):
-    encounter = store.create_encounter(user, payload.scenario_id)
+    encounter = store.create_encounter(user)
     return encounter
 
 
@@ -183,16 +174,6 @@ def consent(encounter_id: str, payload: ConsentRequest, user: User = Depends(req
     return store.save_encounter(encounter)
 
 
-@app.post("/api/v1/encounters/{encounter_id}/demo-scenario", response_model=EncounterView)
-async def load_demo(encounter_id: str, scenario_id: str = Body(embed=True), user: User = Depends(require_roles(Role.PATIENT))):
-    encounter = encounter_for(user, encounter_id)
-    if not encounter.consent.get("accepted"):
-        raise HTTPException(409, "Consent is required")
-    if scenario_id not in store.scenarios:
-        raise HTTPException(404, "Demo scenario not found")
-    return await encounters.load_scenario(encounter, scenario_id, user)
-
-
 @app.post("/api/v1/encounters/{encounter_id}/ingest", response_model=EncounterView)
 async def ingest(encounter_id: str, payload: IngestRequest, user: User = Depends(require_roles(Role.PATIENT))):
     encounter = encounter_for(user, encounter_id)
@@ -200,8 +181,7 @@ async def ingest(encounter_id: str, payload: IngestRequest, user: User = Depends
         raise HTTPException(409, "Consent is required")
     encounter = encounters.ingest(encounter, payload.text, payload.input_type, user)
     if encounter.status == "processing":
-        scenario = {"triage":"Emergency", "critic":"Emergency", "retrieval_quality":0.96, "uncertainty":0.04}
-        return await encounters.finalize(encounter, scenario, user)
+        return await encounters.finalize(encounter, encounters.case_context(encounter), user)
     return encounter
 
 
@@ -231,7 +211,7 @@ def delta(encounter_id: str, user: User = Depends(current_user)):
     return {
         "has_history": bool(previous),
         "summary": "No previous encounter is available." if not previous else f"Compared with {len(previous)} prior encounter(s); current urgency is {current.gate.urgency.value if current.gate else 'pending'}.",
-        "changes": [] if not previous else ["Current report and urgency were compared with the previous demo encounter."],
+        "changes": [] if not previous else ["Current report and urgency were compared with the previous encounter."],
     }
 
 
@@ -334,7 +314,7 @@ def metrics(user: User = Depends(require_roles(Role.ADMIN))):
 @app.get("/api/v1/admin/integrations")
 def integrations(user: User = Depends(require_roles(Role.ADMIN))):
     return {
-        "fallback_agent": {"provider": settings.agent_provider, "ready": settings.agent_provider == "mock" or bool(settings.gemini_api_key)},
+        "fallback_agent": {"provider": settings.agent_provider, "ready": bool(settings.gemini_api_key)},
         "orchestrator": encounters.orchestrator.status(),
         "mcp": ops_mcp.status(),
         "a2a": {"enabled": settings.a2a_enabled, "agents": ["triage", "critic", "documentation"]},
@@ -440,19 +420,12 @@ async def a2a_call(agent_name: str, payload: dict[str, Any], authorization: str 
     retrieval = get_retrieval_provider()
     citations, _ = retrieval.retrieve(data.get("text", ""), tenant_id=store.tenant_id)
     if agent_name == "triage":
-        result = await provider.triage(data.get("text", ""), data.get("scenario", {}), citations)
+        result = await provider.triage(data.get("text", ""), data.get("context", {}), citations)
     elif agent_name == "critic":
         proposal = TriageProposal.model_validate(data["proposal"])
-        result = await provider.critique(proposal, data.get("text", ""), data.get("scenario", {}))
+        result = await provider.critique(proposal, data.get("text", ""), data.get("context", {}))
     else:
         proposal = TriageProposal.model_validate(data["proposal"])
         result = await provider.document(data.get("text", ""), proposal, citations)
     store.audit(store.tenant_id, data.get("encounter_id"), f"a2a:{agent_name}", "a2a.task_completed", {"agent": agent_name, "run_id": getattr(result, "run_id", None)})
     return {"jsonrpc":"2.0", "id":request_id, "result":{"kind":"message", "role":"agent", "parts":[{"kind":"data", "data":result.model_dump(mode="json")} ]}}
-
-
-@app.post("/mcp")
-def local_mock_mcp(payload: dict[str, Any]):
-    if settings.mcp_provider != "mock":
-        raise HTTPException(404, "Local mock MCP is disabled")
-    return mock_mcp_response(payload)

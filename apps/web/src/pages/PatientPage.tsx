@@ -1,24 +1,21 @@
-import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, FileAudio, Keyboard, LoaderCircle, RotateCcw, Sparkles } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, FileAudio, Keyboard, LoaderCircle, RotateCcw, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../api/client'
 import { Disclaimer } from '../components/Disclaimer'
 import { StatusPill } from '../components/StatusPill'
 import { Timeline } from '../components/Timeline'
-import type { Encounter, Scenario } from '../types'
+import type { Encounter } from '../types'
 
 export function PatientPage() {
-  const scenarios = useQuery({ queryKey:['scenarios'], queryFn:api.scenarios })
   const [encounter, setEncounter] = useState<Encounter | null>(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
-  const [text, setText] = useState('I have mild symptoms that began yesterday.')
+  const [text, setText] = useState('')
   const [inputType, setInputType] = useState<'text'|'voice-transcript'>('text')
   const [answer, setAnswer] = useState('')
 
   async function withBusy(label: string, action: () => Promise<void>) { setBusy(label); setError(''); try { await action() } catch (reason) { setError(reason instanceof Error ? reason.message : 'Something went wrong') } finally { setBusy('') } }
   async function begin(): Promise<Encounter> { const created = await api.createEncounter(); return api.consent(created.id) }
-  function runScenario(scenario: Scenario) { void withBusy(scenario.id, async () => { const consented = await begin(); setEncounter(await api.loadScenario(consented.id, scenario.id)) }) }
   function runManual() { void withBusy('manual', async () => { const consented = await begin(); setEncounter(await api.ingest(consented.id, text, inputType)) }) }
   function answerQuestion(questionId: string) { if (!encounter) return; void withBusy('answer', async () => { setEncounter(await api.answer(encounter.id, questionId, answer)); setAnswer('') }) }
   function teachBack(response: string) { if (!encounter) return; void withBusy('teachback', async () => setEncounter(await api.teachBack(encounter.id, response))) }
@@ -47,14 +44,13 @@ export function PatientPage() {
 
   return (
     <div className="page-wrap">
-      <header className="page-hero"><div><span className="eyebrow">Patient intake</span><h1>Tell us what’s happening.<br /><em>We’ll show our work.</em></h1><p>CareRelay asks up to three high-value questions, checks warning signs before AI, and never gives a diagnosis.</p></div><div className="hero-seal"><Sparkles size={20} /><strong>DEMO_MODE</strong><span>No paid AI credentials</span></div></header>
+      <header className="page-hero"><div><span className="eyebrow">Patient intake</span><h1>Tell us what’s happening.<br /><em>We’ll help route the next step.</em></h1><p>CareRelay asks only for the details that matter, checks warning signs first, and never provides a diagnosis or treatment plan.</p></div><div className="hero-seal"><ShieldCheck size={22} /><strong>Safety first</strong><span>Urgency, not diagnosis</span></div></header>
       <Disclaimer />
       {error && <p role="alert" className="form-error"><AlertTriangle size={17} />{error}</p>}
-      <section className="intake-grid">
+      <section className="intake-grid intake-grid--focused">
         <div className="instrument-card manual-intake"><div className="section-heading"><div><span className="eyebrow">Start from your words</span><h2>Symptom intake</h2></div><div className="segmented"><button className={inputType==='text'?'active':''} onClick={() => setInputType('text')}><Keyboard size={15}/>Text</button><button className={inputType==='voice-transcript'?'active':''} onClick={() => setInputType('voice-transcript')}><FileAudio size={15}/>Voice transcript</button></div></div><label>What are you experiencing?<textarea value={text} onChange={(event) => setText(event.target.value)} /></label><p className="helper">Names, contact details, and record identifiers are masked before external processing.</p><button className="button primary" disabled={busy==='manual' || text.trim().length<3} onClick={runManual}>{busy==='manual'?<LoaderCircle className="spin"/>:<ArrowRight/>}Begin safe intake</button></div>
-        <div className="scenario-panel"><div className="section-heading"><div><span className="eyebrow">One-click judge demo</span><h2>Seeded safety scenarios</h2></div><span className="count">08</span></div><div className="scenario-list">{scenarios.data?.map((scenario, index) => <button key={scenario.id} disabled={Boolean(busy)} onClick={() => runScenario(scenario)}><span>{String(index+1).padStart(2,'0')}</span><div><strong>{scenario.name}</strong><small>{scenario.summary}</small></div>{busy===scenario.id?<LoaderCircle className="spin"/>:<ChevronRight/>}</button>)}</div></div>
+        <aside className="intake-aside"><span className="eyebrow">What happens next</span><h2>A clear, careful handoff.</h2><ol><li><span>01</span><div><strong>Safety screen</strong><p>Warning signs are checked before any automated review.</p></div></li><li><span>02</span><div><strong>Focused questions</strong><p>We only ask for details needed to clarify urgency.</p></div></li><li><span>03</span><div><strong>Next-step guidance</strong><p>You get a transparent recommendation and safety net.</p></div></li></ol><p className="intake-aside__note">Please do not include passwords, financial details, or record numbers.</p></aside>
       </section>
     </div>
   )
 }
-

@@ -21,19 +21,6 @@
         "title": "AnswerRequest",
         "type": "object"
       },
-      "Body_load_demo_api_v1_encounters__encounter_id__demo_scenario_post": {
-        "properties": {
-          "scenario_id": {
-            "title": "Scenario Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "scenario_id"
-        ],
-        "title": "Body_load_demo_api_v1_encounters__encounter_id__demo_scenario_post",
-        "type": "object"
-      },
       "ConsentRequest": {
         "properties": {
           "accepted": {
@@ -41,7 +28,7 @@
             "type": "boolean"
           },
           "version": {
-            "default": "demo-v1",
+            "default": "care-relay-v1",
             "title": "Version",
             "type": "string"
           }
@@ -53,19 +40,7 @@
         "type": "object"
       },
       "EncounterCreate": {
-        "properties": {
-          "scenario_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scenario Id"
-          }
-        },
+        "properties": {},
         "title": "EncounterCreate",
         "type": "object"
       },
@@ -151,17 +126,6 @@
             "title": "Questions",
             "type": "array"
           },
-          "scenario_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scenario Id"
-          },
           "soap": {
             "anyOf": [
               {
@@ -234,7 +198,6 @@
           "tenant_id",
           "patient_id",
           "patient_name",
-          "scenario_id",
           "status",
           "created_at",
           "consent",
@@ -253,7 +216,7 @@
             "type": "string"
           },
           "jurisdiction": {
-            "default": "demo",
+            "default": "general",
             "title": "Jurisdiction",
             "type": "string"
           },
@@ -662,6 +625,33 @@
           "summary"
         ],
         "title": "SafetyCritique",
+        "type": "object"
+      },
+      "SignupRequest": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "name"
+        ],
+        "title": "SignupRequest",
         "type": "object"
       },
       "SoapDraft": {
@@ -1454,6 +1444,45 @@
         "summary": "Me"
       }
     },
+    "/api/v1/auth/signup": {
+      "post": {
+        "description": "Public registration creates a patient account only; staff roles stay provisioned.",
+        "operationId": "signup_api_v1_auth_signup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signup"
+      }
+    },
     "/api/v1/auth/ws-ticket": {
       "post": {
         "operationId": "create_ws_ticket_api_v1_auth_ws_ticket_post",
@@ -1496,50 +1525,6 @@
           }
         },
         "summary": "Create Ws Ticket"
-      }
-    },
-    "/api/v1/demo/scenarios": {
-      "get": {
-        "operationId": "scenarios_api_v1_demo_scenarios_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Scenarios"
       }
     },
     "/api/v1/encounters": {
@@ -1882,71 +1867,6 @@
           }
         },
         "summary": "Delta"
-      }
-    },
-    "/api/v1/encounters/{encounter_id}/demo-scenario": {
-      "post": {
-        "operationId": "load_demo_api_v1_encounters__encounter_id__demo_scenario_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "encounter_id",
-            "required": true,
-            "schema": {
-              "title": "Encounter Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_load_demo_api_v1_encounters__encounter_id__demo_scenario_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EncounterView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Load Demo"
       }
     },
     "/api/v1/encounters/{encounter_id}/escalate": {
@@ -2599,44 +2519,6 @@
           }
         },
         "summary": "Ready"
-      }
-    },
-    "/mcp": {
-      "post": {
-        "operationId": "local_mock_mcp_mcp_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Payload",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Local Mock Mcp"
       }
     }
   }

@@ -46,7 +46,7 @@ class OrchestrationProvider(ABC):
     async def run(
         self,
         masked_text: str,
-        scenario: dict[str, Any],
+        context: dict[str, Any],
         citations: list[EvidenceCitation],
         run_ref: str,
     ) -> OrchestrationOutcome:
@@ -70,19 +70,19 @@ class LocalOrchestrator(OrchestrationProvider):
     async def run(
         self,
         masked_text: str,
-        scenario: dict[str, Any],
+        context: dict[str, Any],
         citations: list[EvidenceCitation],
         run_ref: str,
     ) -> OrchestrationOutcome:
         started = datetime.now(timezone.utc)
         start = time.monotonic()
         triage = await asyncio.wait_for(
-            self.provider.triage(masked_text, scenario, citations),
+            self.provider.triage(masked_text, context, citations),
             timeout=self.settings.provider_timeout_seconds,
         )
         critic, soap = await asyncio.gather(
             asyncio.wait_for(
-                self.provider.critique(triage, masked_text, scenario),
+                self.provider.critique(triage, masked_text, context),
                 timeout=self.settings.provider_timeout_seconds,
             ),
             asyncio.wait_for(
@@ -110,7 +110,7 @@ class LocalOrchestrator(OrchestrationProvider):
             "provider": self.name,
             "configured": True,
             "ready": not self.settings.require_live_orchestration,
-            "mode": "demo-fallback",
+            "mode": "local-fallback",
         }
 
 
@@ -192,11 +192,11 @@ class LyzrSuperFlowOrchestrator(OrchestrationProvider):
     async def run(
         self,
         masked_text: str,
-        scenario: dict[str, Any],
+        context: dict[str, Any],
         citations: list[EvidenceCitation],
         run_ref: str,
     ) -> OrchestrationOutcome:
-        del scenario  # Demo answers never steer a live workflow.
+        del context  # Encounter context never steers a live workflow.
         self._require_configuration()
         started = datetime.now(timezone.utc)
         start = time.monotonic()

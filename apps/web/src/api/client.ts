@@ -1,4 +1,4 @@
-import type { Encounter, Escalation, Scenario, User } from '../types'
+import type { Encounter, Escalation, User } from '../types'
 
 const base = import.meta.env.VITE_API_BASE || '/api/v1'
 
@@ -21,12 +21,10 @@ export const api = {
   login: (email: string, password: string) => request<{access_token:string; user:User}>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   signup: (name: string, email: string, password: string) =>
     request<{access_token:string; user:User}>('/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
-  scenarios: () => request<Scenario[]>('/demo/scenarios'),
   encounters: () => request<Encounter[]>('/encounters'),
   encounter: (id: string) => request<Encounter>(`/encounters/${id}`),
-  createEncounter: (scenario_id?: string) => request<Encounter>('/encounters', { method: 'POST', body: JSON.stringify({ scenario_id }) }),
-  consent: (id: string) => request<Encounter>(`/encounters/${id}/consent`, { method: 'POST', body: JSON.stringify({ accepted: true, version: 'demo-v1' }) }),
-  loadScenario: (id: string, scenario_id: string) => request<Encounter>(`/encounters/${id}/demo-scenario`, { method: 'POST', body: JSON.stringify({ scenario_id }) }),
+  createEncounter: () => request<Encounter>('/encounters', { method: 'POST', body: JSON.stringify({}) }),
+  consent: (id: string) => request<Encounter>(`/encounters/${id}/consent`, { method: 'POST', body: JSON.stringify({ accepted: true, version: 'care-relay-v1' }) }),
   ingest: (id: string, text: string, input_type: 'text' | 'voice-transcript') => request<Encounter>(`/encounters/${id}/ingest`, { method: 'POST', body: JSON.stringify({ text, input_type }) }),
   answer: (id: string, question_id: string, answer: string) => request<Encounter>(`/encounters/${id}/answers`, { method: 'POST', body: JSON.stringify({ question_id, answer }) }),
   teachBack: (id: string, answer: string) => request<Encounter>(`/encounters/${id}/teach-back`, { method: 'POST', body: JSON.stringify({ answer }) }),

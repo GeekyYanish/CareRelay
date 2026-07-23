@@ -1,6 +1,6 @@
-.PHONY: demo down logs seed test test-api test-web test-e2e build generate-types verify-lyzr
+.PHONY: up down logs test test-api test-web test-e2e build generate-types verify-lyzr
 
-demo:
+up:
 	@test -f .env || cp .env.example .env
 	docker compose up --build
 
@@ -9,9 +9,6 @@ down:
 
 logs:
 	docker compose logs -f api web
-
-seed:
-	docker compose exec api python -m app.seed
 
 test: test-api test-web test-e2e
 

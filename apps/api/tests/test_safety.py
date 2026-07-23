@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from app.agents.providers import MockAgentProvider, RetrievalProvider
+from app.agents.providers import DeterministicBaselineProvider, RetrievalProvider
 from app.privacy import mask_phi
 from app.rules import RedFlagEngine
 from app.schemas import SafetyCritique, TriageProposal, URGENCY_RANK, UncertaintyMap, Urgency
@@ -94,15 +94,15 @@ def test_deterministic_hash_embedding_is_repeatable():
     assert round(sum(value * value for value in left), 5) == 1
 
 
-def test_phi_masking_covers_demo_identifiers():
+def test_phi_masking_covers_identifiers():
     masked = mask_phi(
         "Jane Patient jane@example.com +1 (415) 555-0199 MRN: ABCD-1234"
     )
     assert masked == "[NAME] [EMAIL] [PHONE] [RECORD_ID]"
 
 
-def test_mock_soap_every_sentence_has_provenance():
-    provider = MockAgentProvider()
+def test_baseline_soap_every_sentence_has_provenance():
+    provider = DeterministicBaselineProvider()
     triage = proposal(Urgency.ROUTINE)
     citations, _ = RetrievalProvider().retrieve("mild symptom")
     soap = asyncio.run(provider.document("mild symptom", triage, citations))

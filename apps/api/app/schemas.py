@@ -101,7 +101,7 @@ class EvidenceCitation(BaseModel):
     title: str
     version: str
     excerpt: str
-    jurisdiction: str = "demo"
+    jurisdiction: str = "general"
     retrieval_score: float = Field(ge=0, le=1)
 
 
@@ -200,12 +200,12 @@ class OrchestrationRun(BaseModel):
 
 
 class EncounterCreate(BaseModel):
-    scenario_id: str | None = None
+    pass
 
 
 class ConsentRequest(BaseModel):
     accepted: bool
-    version: str = "demo-v1"
+    version: str = "care-relay-v1"
 
 
 class IngestRequest(BaseModel):
@@ -235,7 +235,6 @@ class EncounterView(BaseModel):
     tenant_id: str
     patient_id: str
     patient_name: str
-    scenario_id: str | None
     status: str
     created_at: datetime
     consent: dict[str, Any]

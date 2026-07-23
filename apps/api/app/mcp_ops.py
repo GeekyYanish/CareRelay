@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -18,22 +17,12 @@ class OpsMcpAdapter:
     def status(self) -> dict[str, Any]:
         return {
             "provider": self.settings.mcp_provider,
-            "connected": self.settings.mcp_provider == "mock" or bool(self.settings.google_cloud_mcp_token),
-            "mode": "synthetic read-only" if self.settings.mcp_provider == "mock" else "Google Cloud read-only",
+            "connected": bool(self.settings.google_cloud_mcp_token),
+            "mode": "Google Cloud read-only",
             "allowed_tools": sorted(ALLOWED_TOOLS),
         }
 
     async def snapshot(self) -> dict[str, Any]:
-        if self.settings.mcp_provider == "mock":
-            return {
-                "source": "local-mock-mcp",
-                "captured_at": datetime.now(timezone.utc).isoformat(),
-                "service_health": "operational",
-                "agent_runs_24h": 32,
-                "timeouts_24h": 1,
-                "open_alerts": 0,
-                "note": "Synthetic operations data; MCP is isolated from clinical decisions.",
-            }
         if not self.settings.google_cloud_project or not self.settings.google_cloud_mcp_token:
             raise RuntimeError("Google Cloud MCP requires project and bearer token")
         headers = {
@@ -98,16 +87,3 @@ class OpsMcpAdapter:
             "sanitized_summaries": summaries,
             "note": "Raw log entries, metric points, and alert payloads are not returned to the UI.",
         }
-
-
-def mock_mcp_response(payload: dict[str, Any]) -> dict[str, Any]:
-    method = payload.get("method")
-    request_id = payload.get("id")
-    if method == "tools/list":
-        return {"jsonrpc":"2.0", "id":request_id, "result":{"tools":[{"name":name, "description":"Synthetic read-only CareRelay operations tool", "annotations":{"readOnlyHint":True}} for name in sorted(ALLOWED_TOOLS)]}}
-    if method == "tools/call":
-        name = payload.get("params", {}).get("name")
-        if name not in ALLOWED_TOOLS:
-            return {"jsonrpc":"2.0", "id":request_id, "error":{"code":-32601, "message":"Tool is not allowlisted"}}
-        return {"jsonrpc":"2.0", "id":request_id, "result":{"content":[{"type":"text", "text":f"Synthetic result for {name}"}], "isError":False}}
-    return {"jsonrpc":"2.0", "id":request_id, "error":{"code":-32601, "message":"Method not found"}}
